@@ -1,0 +1,5 @@
+{
+  "name": "Agentes Foco",
+  "description": "Uma aplicação de chat multi-agente focada com histórico persistente e personas de IA especializadas.",
+  "requestFramePermissions": []
+}
