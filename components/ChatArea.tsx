@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Agent, Message, Attachment } from '../types';
-import { Send, Bot, Sparkles, Paperclip, X, FileText, PlusCircle } from 'lucide-react';
+import { Send, Bot, Sparkles, Paperclip, X, FileText, PlusCircle, Download, FileSpreadsheet } from 'lucide-react';
 
 interface ChatAreaProps {
   agent: Agent;
@@ -71,6 +71,25 @@ const ChatArea: React.FC<ChatAreaProps> = ({ agent, messages, onSendMessage, onN
       setInputText('');
       setSelectedFiles([]);
     }
+  };
+
+  // Helper to detect if content is a CSV response based on Agent 02 header
+  const hasCSVHeader = (content: string) => content.includes("ID;ATIVIDADE;RESPONSAVEL");
+
+  const downloadCSV = (content: string) => {
+    // Extract specific CSV block if embedded, or use full content if clean
+    let csvContent = content.replace(/```csv/g, '').replace(/```/g, '');
+    
+    // Ensure we have a BOM for Excel to read UTF-8 characters correctly (acents)
+    const BOM = "\uFEFF"; 
+    const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `relatorio_projetos_${new Date().toISOString().slice(0,10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (
@@ -149,7 +168,32 @@ const ChatArea: React.FC<ChatAreaProps> = ({ agent, messages, onSendMessage, onN
                    </div>
                  )}
 
-                 <div className="whitespace-pre-wrap">{msg.content}</div>
+                 {/* 
+                    CONTENT RENDERING LOGIC:
+                    If the message is from the assistant AND contains the CSV header,
+                    we hide the raw text and show only the download button.
+                 */}
+                 {msg.role === 'assistant' && hasCSVHeader(msg.content) ? (
+                   <div className="flex flex-col items-start gap-3 py-1">
+                     <p className="font-medium text-gray-800 flex items-center gap-2">
+                       <Sparkles size={14} className="text-[#D4AF37]" />
+                       Arquivo gerado com sucesso!
+                     </p>
+                     <button 
+                        onClick={() => downloadCSV(msg.content)}
+                        className="flex items-center gap-2 px-4 py-3 bg-green-50 text-green-700 border border-green-200 rounded-lg hover:bg-green-100 transition-all shadow-sm font-medium"
+                      >
+                        <FileSpreadsheet size={20} />
+                        <div>
+                           <span className="block text-xs font-bold">Baixar Planilha</span>
+                           <span className="block text-[10px] opacity-80 font-normal">Formato .csv (Excel)</span>
+                        </div>
+                      </button>
+                   </div>
+                 ) : (
+                   <div className="whitespace-pre-wrap">{msg.content}</div>
+                 )}
+
                  <div className={`text-[10px] mt-2 opacity-60 ${msg.role === 'user' ? 'text-gray-300' : 'text-gray-400'}`}>
                     {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                  </div>
