@@ -12,7 +12,7 @@ import Login from './components/Login';
 const MOCK_USER: User = {
   id: 'u-123',
   email: 'demo@agentesfoco.com',
-  name: 'Usuário Demo'
+  name: 'versão de teste'
 };
 
 // ATENÇÃO: Em produção, nunca exponha sua chave API no frontend.
