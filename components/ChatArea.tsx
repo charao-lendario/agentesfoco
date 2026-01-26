@@ -1,6 +1,10 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Agent, Message, Attachment } from '../types';
-import { Send, Bot, Sparkles, Paperclip, X, FileText, PlusCircle, Download, FileSpreadsheet } from 'lucide-react';
+import { Send, Bot, Sparkles, Paperclip, X, FileText, PlusCircle, Download, FileSpreadsheet, FileDown } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+// @ts-ignore
+import html2pdf from 'html2pdf.js';
 
 interface ChatAreaProps {
   agent: Agent;
@@ -13,6 +17,7 @@ interface ChatAreaProps {
 const ChatArea: React.FC<ChatAreaProps> = ({ agent, messages, onSendMessage, onNewChat, isTyping }) => {
   const [inputText, setInputText] = useState('');
   const [selectedFiles, setSelectedFiles] = useState<Attachment[]>([]);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -77,10 +82,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ agent, messages, onSendMessage, onN
   const hasCSVHeader = (content: string) => content.includes("ID;ATIVIDADE;RESPONSAVEL");
 
   const downloadCSV = (content: string) => {
-    // Extract specific CSV block if embedded, or use full content if clean
     let csvContent = content.replace(/```csv/g, '').replace(/```/g, '');
-    
-    // Ensure we have a BOM for Excel to read UTF-8 characters correctly (acents)
     const BOM = "\uFEFF"; 
     const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -90,6 +92,25 @@ const ChatArea: React.FC<ChatAreaProps> = ({ agent, messages, onSendMessage, onN
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const generatePDF = (elementId: string, messageId: string) => {
+    const element = document.getElementById(elementId);
+    if (!element) return;
+
+    setIsGeneratingPdf(messageId);
+
+    const opt = {
+      margin:       [10, 10, 10, 10], // top, left, bottom, right in mm
+      filename:     `Relatorio_${agent.name}_${new Date().toISOString().slice(0,10)}.pdf`,
+      image:        { type: 'jpeg', quality: 0.98 },
+      html2canvas:  { scale: 2, useCORS: true },
+      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    html2pdf().set(opt).from(element).save().then(() => {
+      setIsGeneratingPdf(null);
+    });
   };
 
   return (
@@ -141,10 +162,10 @@ const ChatArea: React.FC<ChatAreaProps> = ({ agent, messages, onSendMessage, onN
               }`}
             >
               <div
-                className={`max-w-[80%] rounded-2xl px-5 py-4 shadow-sm text-sm leading-relaxed ${
+                className={`max-w-[85%] rounded-2xl px-5 py-4 shadow-sm text-sm leading-relaxed ${
                   msg.role === 'user'
                     ? 'bg-[#0A192F] text-white rounded-br-none'
-                    : 'bg-white border border-gray-100 text-gray-800 rounded-bl-none'
+                    : 'bg-white border border-gray-100 text-gray-800 rounded-bl-none w-full'
                 }`}
               >
                  {/* Attachments Display in Message */}
@@ -168,11 +189,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ agent, messages, onSendMessage, onN
                    </div>
                  )}
 
-                 {/* 
-                    CONTENT RENDERING LOGIC:
-                    If the message is from the assistant AND contains the CSV header,
-                    we hide the raw text and show only the download button.
-                 */}
+                 {/* CONTENT RENDERING LOGIC */}
                  {msg.role === 'assistant' && hasCSVHeader(msg.content) ? (
                    <div className="flex flex-col items-start gap-3 py-1">
                      <p className="font-medium text-gray-800 flex items-center gap-2">
@@ -190,7 +207,52 @@ const ChatArea: React.FC<ChatAreaProps> = ({ agent, messages, onSendMessage, onN
                         </div>
                       </button>
                    </div>
+                 ) : msg.role === 'assistant' ? (
+                   /* Rich Markdown Rendering for Assistant */
+                   <div className="flex flex-col gap-2">
+                     <div 
+                        id={`msg-content-${msg.id}`} 
+                        className="prose prose-sm max-w-none prose-headings:text-[#0A192F] prose-a:text-[#D4AF37] prose-strong:text-[#0A192F] prose-slate"
+                     >
+                       <ReactMarkdown 
+                          remarkPlugins={[remarkGfm]}
+                          components={{
+                            table: ({node, ...props}) => (
+                              <div className="overflow-x-auto my-4 border border-gray-200 rounded-lg">
+                                <table className="min-w-full divide-y divide-gray-200" {...props} />
+                              </div>
+                            ),
+                            thead: ({node, ...props}) => <thead className="bg-gray-50" {...props} />,
+                            th: ({node, ...props}) => <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" {...props} />,
+                            td: ({node, ...props}) => <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 border-t border-gray-100" {...props} />,
+                          }}
+                       >
+                         {msg.content}
+                       </ReactMarkdown>
+                     </div>
+                     
+                     {/* PDF Download Button for Assistant Messages (if reasonably long) */}
+                     {msg.content.length > 200 && (
+                       <div className="flex justify-start mt-2 pt-2 border-t border-gray-100">
+                         <button
+                           onClick={() => generatePDF(`msg-content-${msg.id}`, msg.id)}
+                           disabled={isGeneratingPdf === msg.id}
+                           className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-gray-500 hover:text-[#D4AF37] hover:bg-gray-50 rounded-lg transition-colors"
+                         >
+                           {isGeneratingPdf === msg.id ? (
+                             <span className="animate-pulse">Gerando PDF...</span>
+                           ) : (
+                             <>
+                               <FileDown size={14} />
+                               Baixar como PDF
+                             </>
+                           )}
+                         </button>
+                       </div>
+                     )}
+                   </div>
                  ) : (
+                   /* Simple Text for User */
                    <div className="whitespace-pre-wrap">{msg.content}</div>
                  )}
 
@@ -249,7 +311,6 @@ const ChatArea: React.FC<ChatAreaProps> = ({ agent, messages, onSendMessage, onN
             ref={fileInputRef}
             className="hidden"
             onChange={handleFileSelect}
-            // Add .doc and .docx support
             accept=".pdf,.txt,.md,.jpg,.jpeg,.png,.html,.css,.js,.ts,.json,.csv,.doc,.docx"
           />
           
