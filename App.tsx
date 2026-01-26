@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
 // @ts-ignore
 import * as mammoth from "mammoth";
 import { Agent, Message, User, ChatSession, Attachment } from './types';
@@ -220,7 +220,7 @@ const App: React.FC = () => {
 
     try {
       // 3. Initialize Gemini
-      const ai = new GoogleGenerativeAI(API_KEY);
+      const client = new GoogleGenAI({ apiKey: API_KEY });
 
       // 4. Get Current History for API
       const currentSession = sessions.find(s => s.id === currentSessionId);
@@ -261,15 +261,18 @@ const App: React.FC = () => {
       apiContents.push({ role: 'user', parts: currentParts });
 
       // 5. Call API
-      const model = ai.getGenerativeModel({
+      // Add system instruction as first message
+      const contentsWithSystem = [
+        { role: 'user', parts: [{ text: `${activeAgent.systemPrompt}\n\n---\n` }] },
+        ...apiContents
+      ];
+
+      const response = await client.models.generateContent({
         model: 'gemini-3-pro-preview',
-        systemInstruction: activeAgent.systemPrompt
-      });
-      const response = await model.generateContent({
-        contents: apiContents,
+        contents: contentsWithSystem,
       });
 
-      const aiText = response.response?.text?.() || "Não foi possível gerar uma resposta.";
+      const aiText = response.text || "Não foi possível gerar uma resposta.";
 
       // 6. Update UI with AI Response
       const aiMsg: Message = {
