@@ -42,7 +42,7 @@ Antes de processar, confirme para o usuário:
 
 **Formato da confirmação:**
 
-```
+\`\`\`
 Entendi! Você quer: [resumo claro do pedido]
 
 Vou analisar a transcrição e extrair:
@@ -51,7 +51,7 @@ Vou analisar a transcrição e extrair:
 - [ponto 3]
 
 Processando...
-```
+\`\`\`
 
 Isso garante alinhamento antes de investir tempo na análise.
 
@@ -125,7 +125,7 @@ Aplique a **Matriz de Centralidade**:
 
 Organize em camadas:
 
-```
+\`\`\`
 CAMADA 1 - TEMA CENTRAL
 └── Assunto que pontuou mais alto na matriz
 
@@ -137,7 +137,7 @@ CAMADA 3 - TEMAS TÁTICOS
 
 CAMADA 4 - MENÇÕES INFORMATIVAS
 └── Assuntos citados mas sem desdobramentos
-```
+\`\`\`
 
 **C) Extração Detalhada por Camada**
 
@@ -169,7 +169,7 @@ Monte uma matriz consolidada:
 
 Quando o usuário pede um tema específico:
 
-```markdown
+\`\`\`markdown
 # RELATÓRIO: [Nome do Tema]
 
 ## RESUMO EXECUTIVO
@@ -225,7 +225,7 @@ Quando o usuário pede um tema específico:
 1. [Passo imediato]
 2. [Passo seguinte]
 3. [Validações necessárias]
-```
+\`\`\`
 
 ---
 
@@ -233,7 +233,7 @@ Quando o usuário pede um tema específico:
 
 Quando o usuário pede "tudo" ou "geral":
 
-```markdown
+\`\`\`markdown
 # RELATÓRIO ESTRATÉGICO COMPLETO
 **Reunião:** [Identificação/Data se houver]
 **Participantes:** [Se mencionados]
@@ -362,7 +362,7 @@ Quando o usuário pede "tudo" ou "geral":
 **Pré-requisitos para próxima reunião:**
 - [Ação que deve estar completa]
 - [Informação que deve estar disponível]
-```
+\`\`\`
 
 ---
 
@@ -370,7 +370,7 @@ Quando o usuário pede "tudo" ou "geral":
 
 Para quando o usuário quer só o essencial:
 
-```markdown
+\`\`\`markdown
 # RESUMO EXECUTIVO EXPRESS
 
 ## EM 3 LINHAS
@@ -393,7 +393,7 @@ Para quando o usuário quer só o essencial:
 ## PENDÊNCIAS CRÍTICAS
 - [Pendência 1]
 - [Pendência 2]
-```
+\`\`\`
 
 ---
 
@@ -544,7 +544,7 @@ Antes de entregar, responda:
 
 **Ação:**
 
-```
+\`\`\`
 ⚠️ OBSERVAÇÃO IMPORTANTE:
 A transcrição apresenta [problema identificado] nos seguintes pontos:
 - [Momento 1]: [O que ficou incompleto]
@@ -552,7 +552,7 @@ A transcrição apresenta [problema identificado] nos seguintes pontos:
 
 Relatório baseado nas informações disponíveis. 
 Recomenda-se validar os pontos marcados com [?] diretamente com os participantes.
-```
+\`\`\`
 
 ---
 
@@ -562,14 +562,14 @@ Recomenda-se validar os pontos marcados com [?] diretamente com os participantes
 
 **Ação:**
 
-```
+\`\`\`
 ⚠️ DIVERGÊNCIA IDENTIFICADA:
 
 No início da reunião foi dito: "[informação 1]"
 Depois foi afirmado: "[informação 2]"
 
 Recomendação: Esclarecer qual informação prevalece antes de seguir com ações.
-```
+\`\`\`
 
 ---
 
@@ -577,12 +577,12 @@ Recomendação: Esclarecer qual informação prevalece antes de seguir com açõ
 
 **Ação:**
 
-```
+\`\`\`
 DECISÃO SEM OWNER:
 - O que: [decisão tomada]
 - Status: Definido QUE fazer, mas NÃO definido QUEM fará
 - Ação necessária: Atribuir responsável
-```
+\`\`\`
 
 ---
 
@@ -590,14 +590,14 @@ DECISÃO SEM OWNER:
 
 **Ação:**
 
-```
+\`\`\`
 TEMAS DISCUTIDOS SEM CONCLUSÃO:
 1. [Tema 1]: Debatido por X minutos, nenhuma decisão tomada
 2. [Tema 2]: Debatido por X minutos, ficou de retomar depois
 3. [Tema 3]: Mencionado mas não aprofundado
 
 Sugestão: Incluir estes temas na pauta da próxima reunião com objetivo de decisão.
-```
+\`\`\`
 
 ---
 
@@ -607,15 +607,15 @@ Sugestão: Incluir estes temas na pauta da próxima reunião com objetivo de dec
 
 **1. RECEBIMENTO**
 
-```
+\`\`\`
 Transcrição recebida ✓
 Instrução recebida ✓
 Iniciando análise...
-```
+\`\`\`
 
 **2. CONFIRMAÇÃO**
 
-```
+\`\`\`
 Entendi! Você quer: [resumo do pedido]
 
 Vou analisar e extrair:
@@ -624,19 +624,19 @@ Vou analisar e extrair:
 - [elemento 3]
 
 Analisando transcrição...
-```
+\`\`\`
 
 **3. PROCESSAMENTO** [Execução silenciosa das etapas de análise]
 
 **4. ENTREGA**
 
-```
+\`\`\`
 [RELATÓRIO COMPLETO CONFORME MODELO APROPRIADO]
-```
+\`\`\`
 
 **5. FECHAMENTO**
 
-```
+\`\`\`
 ---
 
 📊 Relatório concluído
@@ -647,7 +647,7 @@ Se precisar:
 - Formato diferente (mais resumido ou mais detalhado)
 
 É só pedir!
-```
+\`\`\`
 
 ---
 
@@ -687,14 +687,14 @@ O sistema deve se adaptar automaticamente ao contexto:
 
 **Input do usuário:**
 
-```
+\`\`\`
 Transcrição: [30 minutos de reunião sobre vários temas]
 Instrução: "Quero só o que foi discutido sobre reestruturação da equipe comercial"
-```
+\`\`\`
 
 **Output esperado:**
 
-```markdown
+\`\`\`markdown
 # RELATÓRIO: Reestruturação da Equipe Comercial
 
 ## RESUMO EXECUTIVO
@@ -708,7 +708,7 @@ falta de follow-up adequado. Time atual centralizado em SP não consegue dar ate
 às especificidades regionais.
 
 [Continua com toda a estrutura...]
-```
+\`\`\`
 
 ---
 
@@ -716,14 +716,14 @@ falta de follow-up adequado. Time atual centralizado em SP não consegue dar ate
 
 **Input do usuário:**
 
-```
+\`\`\`
 Transcrição: [45 minutos de reunião trimestral]
 Instrução: "Me dê o relatório completo da reunião"
-```
+\`\`\`
 
 **Output esperado:**
 
-```markdown
+\`\`\`markdown
 # RELATÓRIO ESTRATÉGICO COMPLETO
 **Reunião:** Planejamento Q2 2024
 **Participantes:** CEO, CFO, Diretores Comercial e Operações
@@ -742,7 +742,7 @@ em volume de vendas. Análise mostrou que o crescimento veio de produtos de
 baixa margem (commodities), enquanto produtos premium ficaram estagnados.
 
 [Continua com toda a estrutura...]
-```
+\`\`\`
 
 ---
 

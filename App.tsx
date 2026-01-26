@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
 // @ts-ignore
 import * as mammoth from "mammoth";
 import { Agent, Message, User, ChatSession, Attachment } from './types';
@@ -14,10 +14,6 @@ const MOCK_USER: User = {
   email: 'demo@agentesfoco.com',
   name: 'versão de teste'
 };
-
-// ATENÇÃO: Em produção, nunca exponha sua chave API no frontend.
-// Utilize variáveis de ambiente (process.env.API_KEY).
-const API_KEY = 'AIzaSyAMreDhhib3uTGWOHoZZ2Yx2svuAOvKXBk';
 
 const App: React.FC = () => {
   // --- State ---
@@ -215,7 +211,7 @@ const App: React.FC = () => {
 
     try {
       // 3. Initialize Gemini
-      const ai = new GoogleGenerativeAI(API_KEY);
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
       // 4. Get Current History for API
       const currentSession = sessions.find(s => s.id === currentSessionId);
