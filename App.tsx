@@ -15,9 +15,12 @@ const MOCK_USER: User = {
   name: 'versão de teste'
 };
 
-// ATENÇÃO: Em produção, nunca exponha sua chave API no frontend.
-// Utilize variáveis de ambiente (process.env.API_KEY).
-const API_KEY = 'AIzaSyAMreDhhib3uTGWOHoZZ2Yx2svuAOvKXBk';
+// API Key must be set via environment variables
+const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';
+
+if (!API_KEY) {
+  console.warn('Warning: VITE_GEMINI_API_KEY environment variable is not set');
+}
 
 const App: React.FC = () => {
   // --- State ---
