@@ -260,7 +260,7 @@ const App: React.FC = () => {
 
       // 5. Call API
       const model = ai.getGenerativeModel({
-        model: 'gemini-pro',
+        model: 'gemini-3-pro-preview',
         systemInstruction: activeAgent.systemPrompt
       });
       const response = await model.generateContent({
