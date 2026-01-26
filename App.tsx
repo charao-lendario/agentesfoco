@@ -19,7 +19,9 @@ const MOCK_USER: User = {
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';
 
 if (!API_KEY) {
-  console.warn('Warning: VITE_GEMINI_API_KEY environment variable is not set');
+  console.error('ERRO: VITE_GEMINI_API_KEY não está configurada!');
+} else {
+  console.log('✓ API Key carregada (primeiros 10 chars):', API_KEY.substring(0, 10));
 }
 
 const App: React.FC = () => {
