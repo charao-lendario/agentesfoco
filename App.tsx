@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 // @ts-ignore
 import * as mammoth from "mammoth";
 import { Agent, Message, User, ChatSession, Attachment } from './types';
@@ -215,7 +215,7 @@ const App: React.FC = () => {
 
     try {
       // 3. Initialize Gemini
-      const ai = new GoogleGenAI({ apiKey: API_KEY });
+      const ai = new GoogleGenerativeAI(API_KEY);
 
       // 4. Get Current History for API
       const currentSession = sessions.find(s => s.id === currentSessionId);
