@@ -16,7 +16,7 @@ const MOCK_USER: User = {
 };
 
 // API Key must be set via environment variables
-const API_KEY = (import.meta.env as any).VITE_GEMINI_API_KEY || '';
+const API_KEY = (import.meta.env as Record<string, string>).VITE_GEMINI_API_KEY || '';
 
 if (!API_KEY) {
   console.warn('Warning: VITE_GEMINI_API_KEY environment variable is not set');
