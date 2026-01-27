@@ -47,7 +47,7 @@ export default defineConfig(({ mode }) => {
                 res.statusCode = 200;
                 res.setHeader('Content-Type', 'application/json');
                 res.end(JSON.stringify({ text: response.text }));
-              } catch (error) {
+              } catch (error: any) {
                 console.error('Gemini API Error:', error);
                 res.statusCode = 500;
                 res.setHeader('Content-Type', 'application/json');
