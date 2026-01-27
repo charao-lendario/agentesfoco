@@ -207,32 +207,24 @@ const App: React.FC = () => {
       // Instead, we call our own Backend Proxy
 
       // 4. Get Current History for API
-      // 4. Get Current History for API
       const currentSession = sessions.find(s => s.id === currentSessionId);
       const historyMessages = currentSession?.messages || []; // Histórico anterior (sem a msg atual que acabamos de criar)
 
       const processMessageForOpenAI = async (msg: Message) => {
-        let contentParts: any[] = [];
+        // 1. Acumula todo o texto (mensagem principal + conteúdo extraído de docs)
+        let fullText = msg.content || "";
 
-        // Processa texto e anexos
         const { inlineParts, textContent } = await processAttachmentsForApi(msg.attachments || []);
 
-        // 1. Texto principal + Texto de arquivos (PDFs/Docs lidos)
-        let finalContent = msg.content || "";
         if (textContent) {
-          finalContent = (finalContent ? finalContent + "\n\n" : "") + textContent;
+          fullText = (fullText ? fullText + "\n\n--- ANEXO ---\n" : "") + textContent;
         }
 
-        if (finalContent) {
-          contentParts.push({ type: "text", text: finalContent });
-        }
-
-        // 2. Imagens (Inline Parts do Gemini viram Image URL da OpenAI)
-        // A função processAttachmentsForApi retorna inlineParts com { inlineData: { mimeType, data } }
-        // OpenAI espera { type: "image_url", image_url: { url: "data:image/jpeg;base64,..." } }
+        // 2. Processa Imagens
+        const imageParts: any[] = [];
         inlineParts.forEach((part: any) => {
-          if (part.inlineData) {
-            contentParts.push({
+          if (part.inlineData && part.inlineData.mimeType.startsWith("image/")) {
+            imageParts.push({
               type: "image_url",
               image_url: {
                 url: `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`
@@ -241,14 +233,26 @@ const App: React.FC = () => {
           }
         });
 
-        // Se só tiver texto, envia como string (melhor compatibilidade)
-        if (contentParts.length === 1 && contentParts[0].type === "text") {
-          return { role: msg.role === 'user' ? 'user' : 'assistant', content: contentParts[0].text };
+        // 3. Monta o payload final
+        // Se não tem imagens, manda content como string simples (mais seguro e compatível)
+        if (imageParts.length === 0) {
+          // OpenAI não aceita content vazio, mas a UI não deixa enviar msg vazia. De qualquer forma, fallback.
+          return {
+            role: msg.role === 'user' ? 'user' : 'assistant',
+            content: fullText || " "
+          };
         }
+
+        // Se tem imagens, manda array multimodal
+        const content: any[] = [];
+        if (fullText) {
+          content.push({ type: "text", text: fullText });
+        }
+        content.push(...imageParts);
 
         return {
           role: msg.role === 'user' ? 'user' : 'assistant',
-          content: contentParts
+          content: content
         };
       };
 

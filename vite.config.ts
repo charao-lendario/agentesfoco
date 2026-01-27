@@ -11,7 +11,10 @@ export default defineConfig(({ mode }) => {
         name: 'api-server-middleware',
         configureServer(server) {
           server.middlewares.use('/api/generate', async (req, res, next) => {
+            console.log(">>> [PROXY] Recebida requisição para /api/generate");
+
             if (req.method !== 'POST') {
+              console.log(">>> [PROXY] Método ignorado:", req.method);
               next();
               return;
             }
@@ -23,34 +26,36 @@ export default defineConfig(({ mode }) => {
 
             req.on('end', async () => {
               try {
+                console.log(">>> [PROXY] Corpo recebido (tamanho):", body.length);
                 const { messages, systemInstruction, model } = JSON.parse(body);
-                // Busca a chave no .env carregado pelo Vite (env) ou no process.env do sistema
+
                 const apiKey = env.OPENAI_API_KEY || process.env.OPENAI_API_KEY;
+                console.log(">>> [PROXY] Chave API:", apiKey ? "OK (Inicia com " + apiKey.substring(0, 5) + "...)" : "AUSENTE");
 
                 if (!apiKey) {
-                  res.statusCode = 500;
-                  res.setHeader('Content-Type', 'application/json');
-                  res.end(JSON.stringify({ error: 'API Key missing in .env file (OPENAI_API_KEY required)' }));
-                  return;
+                  throw new Error('API Key missing in .env file (OPENAI_API_KEY required)');
                 }
 
                 const openai = new OpenAI({ apiKey });
                 const selectedModel = model || 'gpt-4o-mini';
+                console.log(">>> [PROXY] Modelo:", selectedModel);
 
                 const finalMessages = systemInstruction
                   ? [{ role: 'system', content: systemInstruction }, ...messages]
                   : messages;
 
+                console.log(">>> [PROXY] Enviando para OpenAI...");
                 const completion = await openai.chat.completions.create({
                   model: selectedModel,
                   messages: finalMessages,
                 });
 
+                console.log(">>> [PROXY] Resposta recebida da OpenAI!");
                 res.statusCode = 200;
                 res.setHeader('Content-Type', 'application/json');
                 res.end(JSON.stringify({ text: completion.choices[0].message.content }));
               } catch (error: any) {
-                console.error('OpenAI API Error:', error);
+                console.error('>>> [PROXY] ERRO FATAL:', error);
                 res.statusCode = 500;
                 res.setHeader('Content-Type', 'application/json');
                 res.end(JSON.stringify({ error: error.message || 'Error processing request' }));
