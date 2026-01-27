@@ -1,7 +1,7 @@
-import { GoogleGenAI } from '@google/genai';
+import OpenAI from 'openai';
 
 export const config = {
-  runtime: 'edge', // Opcional: usa Edge Runtime para menor latência
+  runtime: 'edge',
 };
 
 export default async function handler(req) {
@@ -13,9 +13,9 @@ export default async function handler(req) {
   }
 
   try {
-    const { contents, systemInstruction, model } = await req.json();
+    const { messages, systemInstruction, model } = await req.json();
 
-    const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+    const apiKey = process.env.OPENAI_API_KEY;
 
     if (!apiKey) {
       return new Response(JSON.stringify({ error: 'API Key server configuration missing' }), {
@@ -24,26 +24,27 @@ export default async function handler(req) {
       });
     }
 
-    const ai = new GoogleGenAI({ apiKey });
+    const openai = new OpenAI({ apiKey });
 
-    // Usa o modelo passado pelo frontend ou fallback para o 3 Pro
-    const selectedModel = model || 'gemini-1.5-flash';
+    // Adiciona a instrução do sistema como a primeira mensagem se existir
+    const finalMessages = systemInstruction
+      ? [{ role: 'system', content: systemInstruction }, ...messages]
+      : messages;
 
-    const response = await ai.models.generateContent({
+    const selectedModel = model || 'gpt-4o-mini';
+
+    const completion = await openai.chat.completions.create({
       model: selectedModel,
-      contents: contents,
-      config: {
-        systemInstruction: systemInstruction,
-      },
+      messages: finalMessages,
     });
 
-    return new Response(JSON.stringify({ text: response.text }), {
+    return new Response(JSON.stringify({ text: completion.choices[0].message.content }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
-    console.error('Gemini API Error:', error);
+    console.error('OpenAI API Error:', error);
     return new Response(JSON.stringify({ error: error.message || 'Error processing request' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },

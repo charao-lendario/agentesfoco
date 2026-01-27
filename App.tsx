@@ -19,25 +19,25 @@ const App: React.FC = () => {
   // --- State ---
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  
+
   // Replaced simple selectedAgentId with session management
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
-  
+
   // New State structure: Array of sessions instead of keyed object
   const [sessions, setSessions] = useState<ChatSession[]>([]);
-  
+
   const [isTyping, setIsTyping] = useState<boolean>(false);
 
   // --- Effects ---
-  
+
   // Restore session (simulated)
   useEffect(() => {
     const savedUser = localStorage.getItem('agentes_foco_user');
     if (savedUser) {
       setCurrentUser(JSON.parse(savedUser));
       setIsAuthenticated(true);
-      
+
       // Load sessions from local storage if available
       const savedSessions = localStorage.getItem('agentes_foco_sessions');
       if (savedSessions) {
@@ -67,7 +67,7 @@ const App: React.FC = () => {
     setCurrentUser(null);
     localStorage.removeItem('agentes_foco_user');
     // We keep the sessions in local storage for demonstration, but clear state
-    setSessions([]); 
+    setSessions([]);
     setCurrentSessionId(null);
     setSelectedAgentId(null);
   };
@@ -80,7 +80,7 @@ const App: React.FC = () => {
       messages: [],
       lastModified: Date.now()
     };
-    
+
     setSessions(prev => [...prev, newSession]);
     setCurrentSessionId(newSession.id);
     setSelectedAgentId(agentId);
@@ -141,7 +141,7 @@ const App: React.FC = () => {
             data: base64Data
           }
         });
-      } 
+      }
       else if (att.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
         try {
           const base64Data = att.data.split(',')[1];
@@ -186,8 +186,8 @@ const App: React.FC = () => {
     setSessions(prev => prev.map(session => {
       if (session.id === currentSessionId) {
         // Generate a title if it's the first message
-        const newTitle = session.messages.length === 0 
-          ? (text.slice(0, 30) + (text.length > 30 ? '...' : '')) 
+        const newTitle = session.messages.length === 0
+          ? (text.slice(0, 30) + (text.length > 30 ? '...' : ''))
           : session.title;
 
         return {
@@ -207,40 +207,57 @@ const App: React.FC = () => {
       // Instead, we call our own Backend Proxy
 
       // 4. Get Current History for API
+      // 4. Get Current History for API
       const currentSession = sessions.find(s => s.id === currentSessionId);
-      // History excluding the new user message (since we just added it to state, but need to re-construct for logic)
-      const historyForApi = [...(currentSession?.messages || []), userMsg];
+      const historyMessages = currentSession?.messages || []; // Histórico anterior (sem a msg atual que acabamos de criar)
 
-      // Exclude the very last message from "history parts" because it's the current turn
-      const previousMessages = historyForApi.slice(0, -1);
-      const currentMessage = historyForApi[historyForApi.length - 1];
+      const processMessageForOpenAI = async (msg: Message) => {
+        let contentParts: any[] = [];
 
-      // Map Previous Messages
-      const apiContents = await Promise.all(previousMessages.map(async (msg) => {
+        // Processa texto e anexos
         const { inlineParts, textContent } = await processAttachmentsForApi(msg.attachments || []);
-        let finalContent = msg.content;
-        if (textContent) finalContent = (finalContent ? finalContent + "\n" : "") + textContent;
 
-        const parts: any[] = [];
-        if (finalContent) parts.push({ text: finalContent });
-        parts.push(...inlineParts);
+        // 1. Texto principal + Texto de arquivos (PDFs/Docs lidos)
+        let finalContent = msg.content || "";
+        if (textContent) {
+          finalContent = (finalContent ? finalContent + "\n\n" : "") + textContent;
+        }
+
+        if (finalContent) {
+          contentParts.push({ type: "text", text: finalContent });
+        }
+
+        // 2. Imagens (Inline Parts do Gemini viram Image URL da OpenAI)
+        // A função processAttachmentsForApi retorna inlineParts com { inlineData: { mimeType, data } }
+        // OpenAI espera { type: "image_url", image_url: { url: "data:image/jpeg;base64,..." } }
+        inlineParts.forEach((part: any) => {
+          if (part.inlineData) {
+            contentParts.push({
+              type: "image_url",
+              image_url: {
+                url: `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`
+              }
+            });
+          }
+        });
+
+        // Se só tiver texto, envia como string (melhor compatibilidade)
+        if (contentParts.length === 1 && contentParts[0].type === "text") {
+          return { role: msg.role === 'user' ? 'user' : 'assistant', content: contentParts[0].text };
+        }
 
         return {
-          role: msg.role === 'user' ? 'user' : 'model',
-          parts: parts
+          role: msg.role === 'user' ? 'user' : 'assistant',
+          content: contentParts
         };
-      }));
+      };
 
-      // Prepare Current Turn
-      const { inlineParts, textContent } = await processAttachmentsForApi(currentMessage.attachments || []);
-      let finalCurrentText = currentMessage.content;
-      if (textContent) finalCurrentText = (finalCurrentText ? finalCurrentText + "\n" : "") + textContent;
-      
-      const currentParts: any[] = [];
-      if (finalCurrentText) currentParts.push({ text: finalCurrentText });
-      currentParts.push(...inlineParts);
+      // Mapeia histórico
+      const apiMessages = await Promise.all(historyMessages.map(processMessageForOpenAI));
 
-      apiContents.push({ role: 'user', parts: currentParts });
+      // Adiciona mensagem atual
+      const currentMsgApi = await processMessageForOpenAI(userMsg);
+      apiMessages.push(currentMsgApi);
 
       // 5. Call Backend Proxy
       const response = await fetch('/api/generate', {
@@ -249,14 +266,14 @@ const App: React.FC = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'gemini-3-pro-preview', // Updated to Gemini 3 Pro Preview
-          contents: apiContents,
+          model: 'gpt-4o-mini',
+          messages: apiMessages,
           systemInstruction: activeAgent.systemPrompt,
         }),
       });
 
       const data = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(data.error || "Erro na comunicação com o servidor.");
       }
@@ -284,7 +301,7 @@ const App: React.FC = () => {
 
     } catch (error: any) {
       console.error("Erro API Gemini:", error);
-      
+
       const errorMsg: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
@@ -319,7 +336,7 @@ const App: React.FC = () => {
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#F9FAFB]">
-      <Sidebar 
+      <Sidebar
         agents={AGENTS}
         selectedAgentId={selectedAgentId}
         onSelectAgent={handleSelectAgent}
@@ -332,7 +349,7 @@ const App: React.FC = () => {
 
       <main className="flex-1 flex flex-col relative h-full">
         {activeAgent && activeSession ? (
-          <ChatArea 
+          <ChatArea
             agent={activeAgent}
             messages={activeMessages}
             onSendMessage={handleSendMessage}
@@ -342,7 +359,7 @@ const App: React.FC = () => {
         ) : (
           <div className="flex items-center justify-center h-full text-gray-400 flex-col gap-4">
             <div className="w-20 h-20 bg-gray-100 rounded-3xl flex items-center justify-center text-[#D4AF37]">
-               <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-message-square-dashed"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M9 10h.01"/><path d="M15 10h.01"/><path d="M12 10h.01"/></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-message-square-dashed"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /><path d="M9 10h.01" /><path d="M15 10h.01" /><path d="M12 10h.01" /></svg>
             </div>
             <p>Selecione um agente ou inicie uma nova conversa.</p>
           </div>
