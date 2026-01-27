@@ -34,7 +34,7 @@ export default defineConfig(({ mode }) => {
                 }
 
                 const ai = new GoogleGenAI({ apiKey });
-                const selectedModel = model || 'gemini-3-pro-preview';
+                const selectedModel = model || 'gemini-1.5-flash';
 
                 const response = await ai.models.generateContent({
                   model: selectedModel,

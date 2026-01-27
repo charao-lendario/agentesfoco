@@ -27,7 +27,7 @@ export default async function handler(req) {
     const ai = new GoogleGenAI({ apiKey });
 
     // Usa o modelo passado pelo frontend ou fallback para o 3 Pro
-    const selectedModel = model || 'gemini-3-pro-preview';
+    const selectedModel = model || 'gemini-1.5-flash';
 
     const response = await ai.models.generateContent({
       model: selectedModel,
