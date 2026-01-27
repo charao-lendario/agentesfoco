@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { GoogleGenAI } from "@google/genai";
+// Removido import direto do GoogleGenAI para segurança
 // @ts-ignore
 import * as mammoth from "mammoth";
 import { Agent, Message, User, ChatSession, Attachment } from './types';
@@ -87,13 +87,6 @@ const App: React.FC = () => {
   };
 
   const handleSelectAgent = (agentId: string) => {
-    // When clicking an agent, we check if there's an EMPTY active session for them?
-    // Or we just find the most recent session for this agent.
-    // For this UX, let's create a NEW session if the user explicitly clicks the agent in the sidebar "Nova Conversa" section
-    // OR we could toggle to the last session. 
-    // Given the Sidebar UI has a "New Chat" section header, let's treat clicking an Agent as "Start New Context".
-    
-    // However, to prevent spamming empty sessions, if the LAST session for this agent is empty, switch to it.
     const lastSessionForAgent = sessions
       .filter(s => s.agentId === agentId)
       .sort((a, b) => b.lastModified - a.lastModified)[0];
@@ -210,14 +203,12 @@ const App: React.FC = () => {
     setIsTyping(true);
 
     try {
-      // 3. Initialize Gemini
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      // 3. REMOVED DIRECT GEMINI SDK CALL FOR SECURITY
+      // Instead, we call our own Backend Proxy
 
       // 4. Get Current History for API
       const currentSession = sessions.find(s => s.id === currentSessionId);
-      const currentHistory = currentSession ? currentSession.messages : []; // Note: this is pre-update in this closure, but we just pushed userMsg to state.
-      // Actually, we need the history including the message we just added. 
-      // Since setState is async, we'll manually append userMsg to what we know.
+      // History excluding the new user message (since we just added it to state, but need to re-construct for logic)
       const historyForApi = [...(currentSession?.messages || []), userMsg];
 
       // Exclude the very last message from "history parts" because it's the current turn
@@ -251,16 +242,26 @@ const App: React.FC = () => {
 
       apiContents.push({ role: 'user', parts: currentParts });
 
-      // 5. Call API
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: apiContents,
-        config: {
+      // 5. Call Backend Proxy
+      const response = await fetch('/api/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'gemini-3-pro-preview', // Updated to Gemini 3 Pro Preview
+          contents: apiContents,
           systemInstruction: activeAgent.systemPrompt,
-        }
+        }),
       });
 
-      const aiText = response.text || "Não foi possível gerar uma resposta.";
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || "Erro na comunicação com o servidor.");
+      }
+
+      const aiText = data.text || "Não foi possível gerar uma resposta.";
 
       // 6. Update UI with AI Response
       const aiMsg: Message = {
@@ -284,15 +285,10 @@ const App: React.FC = () => {
     } catch (error: any) {
       console.error("Erro API Gemini:", error);
       
-      let errorMessage = "Erro desconhecido.";
-      if (error.message?.includes('API key')) errorMessage = "Erro de autenticação (API Key).";
-      else if (error.message?.includes('Unsupported MIME type')) errorMessage = "Formato de arquivo não suportado.";
-      else errorMessage = error.message || "Erro na comunicação com a IA.";
-
       const errorMsg: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: `[ERRO] ${errorMessage}`,
+        content: `[ERRO] ${error.message || "Erro desconhecido."}`,
         timestamp: Date.now()
       };
 
@@ -346,7 +342,7 @@ const App: React.FC = () => {
         ) : (
           <div className="flex items-center justify-center h-full text-gray-400 flex-col gap-4">
             <div className="w-20 h-20 bg-gray-100 rounded-3xl flex items-center justify-center text-[#D4AF37]">
-               <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-message-square-dashed"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M9 10h.01"/><path d="M15 10h.01"/><path d="M12 10h.01"/></svg>
+               <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-message-square-dashed"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M9 10h.01"/><path d="M15 10h.01"/><path d="M12 10h.01"/></svg>
             </div>
             <p>Selecione um agente ou inicie uma nova conversa.</p>
           </div>
