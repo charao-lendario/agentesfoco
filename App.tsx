@@ -220,6 +220,11 @@ const App: React.FC = () => {
           fullText = (fullText ? fullText + "\n\n--- ANEXO ---\n" : "") + textContent;
         }
 
+        // REFORÇO DE PROMPT: Adiciona lembrete para seguir instruções se houver anexo (contexto longo)
+        if (textContent && fullText) {
+          fullText += "\n\n(IMPORTANTE: Siga estritamente as instruções do sistema quanto ao formato de resposta solicitado. Se foi pedido CSV, entregue APENAS CSV. Se foi pedido Diagnóstico, siga o modelo.)";
+        }
+
         // 2. Processa Imagens
         const imageParts: any[] = [];
         inlineParts.forEach((part: any) => {
