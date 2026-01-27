@@ -15,15 +15,6 @@ const MOCK_USER: User = {
   name: 'versão de teste'
 };
 
-// API Key must be set via environment variables
-const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';
-
-if (!API_KEY) {
-  console.error('ERRO: VITE_GEMINI_API_KEY não está configurada!');
-} else {
-  console.log('✓ API Key carregada (primeiros 10 chars):', API_KEY.substring(0, 10));
-}
-
 const App: React.FC = () => {
   // --- State ---
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
@@ -220,7 +211,7 @@ const App: React.FC = () => {
 
     try {
       // 3. Initialize Gemini
-      const client = new GoogleGenAI({ apiKey: API_KEY });
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
       // 4. Get Current History for API
       const currentSession = sessions.find(s => s.id === currentSessionId);
@@ -261,15 +252,12 @@ const App: React.FC = () => {
       apiContents.push({ role: 'user', parts: currentParts });
 
       // 5. Call API
-      // Add system instruction as first message
-      const contentsWithSystem = [
-        { role: 'user', parts: [{ text: `${activeAgent.systemPrompt}\n\n---\n` }] },
-        ...apiContents
-      ];
-
-      const response = await client.models.generateContent({
+      const response = await ai.models.generateContent({
         model: 'gemini-3-pro-preview',
-        contents: contentsWithSystem,
+        contents: apiContents,
+        config: {
+          systemInstruction: activeAgent.systemPrompt,
+        }
       });
 
       const aiText = response.text || "Não foi possível gerar uma resposta.";
