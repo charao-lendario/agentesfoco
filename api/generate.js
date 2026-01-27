@@ -15,7 +15,7 @@ export default async function handler(req) {
   try {
     const { contents, systemInstruction, model } = await req.json();
 
-    const apiKey = process.env.API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
 
     if (!apiKey) {
       return new Response(JSON.stringify({ error: 'API Key server configuration missing' }), {

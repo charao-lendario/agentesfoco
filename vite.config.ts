@@ -24,7 +24,7 @@ export default defineConfig(({ mode }) => {
             req.on('end', async () => {
               try {
                 const { contents, systemInstruction, model } = JSON.parse(body);
-                const apiKey = env.API_KEY || process.env.API_KEY;
+                const apiKey = env.GEMINI_API_KEY || process.env.GEMINI_API_KEY || env.API_KEY || process.env.API_KEY;
 
                 if (!apiKey) {
                   res.statusCode = 500;
