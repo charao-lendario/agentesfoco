@@ -253,7 +253,7 @@ const App: React.FC = () => {
 
       // 5. Call API
       const response = await ai.models.generateContent({
-        model: 'gemini-3-pro-preview',
+        model: 'gemini-2.5-flash',
         contents: apiContents,
         config: {
           systemInstruction: activeAgent.systemPrompt,
