@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from 'react';
-// Removido import direto do GoogleGenAI para segurança
-// @ts-ignore
-import * as mammoth from "mammoth";
 import { Agent, Message, User, ChatSession, Attachment } from './types';
 import { AGENTS } from './config/agents';
 import Sidebar from './components/Sidebar';
 import ChatArea from './components/ChatArea';
 import Login from './components/Login';
+import mammoth from 'mammoth';
 
 // Mock User Data
 const MOCK_USER: User = {
@@ -19,26 +17,22 @@ const App: React.FC = () => {
   // --- State ---
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-
-  // Replaced simple selectedAgentId with session management
+  
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
-
-  // New State structure: Array of sessions instead of keyed object
+  
   const [sessions, setSessions] = useState<ChatSession[]>([]);
-
+  
   const [isTyping, setIsTyping] = useState<boolean>(false);
 
   // --- Effects ---
-
-  // Restore session (simulated)
+  
   useEffect(() => {
     const savedUser = localStorage.getItem('agentes_foco_user');
     if (savedUser) {
       setCurrentUser(JSON.parse(savedUser));
       setIsAuthenticated(true);
-
-      // Load sessions from local storage if available
+      
       const savedSessions = localStorage.getItem('agentes_foco_sessions');
       if (savedSessions) {
         setSessions(JSON.parse(savedSessions));
@@ -46,7 +40,6 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // Persist sessions whenever they change
   useEffect(() => {
     if (isAuthenticated) {
       localStorage.setItem('agentes_foco_sessions', JSON.stringify(sessions));
@@ -66,8 +59,7 @@ const App: React.FC = () => {
     setIsAuthenticated(false);
     setCurrentUser(null);
     localStorage.removeItem('agentes_foco_user');
-    // We keep the sessions in local storage for demonstration, but clear state
-    setSessions([]);
+    setSessions([]); 
     setCurrentSessionId(null);
     setSelectedAgentId(null);
   };
@@ -80,7 +72,7 @@ const App: React.FC = () => {
       messages: [],
       lastModified: Date.now()
     };
-
+    
     setSessions(prev => [...prev, newSession]);
     setCurrentSessionId(newSession.id);
     setSelectedAgentId(agentId);
@@ -109,12 +101,10 @@ const App: React.FC = () => {
 
   const handleNewChat = () => {
     if (selectedAgentId) {
-      // Force create new session
       createNewSession(selectedAgentId);
     }
   };
 
-  // Helper to convert Base64 Data URI to Uint8Array (Buffer)
   const base64ToUint8Array = (base64Data: string) => {
     const binString = atob(base64Data);
     const len = binString.length;
@@ -125,7 +115,6 @@ const App: React.FC = () => {
     return bytes;
   };
 
-  // Helper to process attachments for API
   const processAttachmentsForApi = async (attachments: Attachment[]) => {
     const inlineParts: any[] = [];
     const textContentParts: string[] = [];
@@ -141,7 +130,7 @@ const App: React.FC = () => {
             data: base64Data
           }
         });
-      }
+      } 
       else if (att.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
         try {
           const base64Data = att.data.split(',')[1];
@@ -149,7 +138,8 @@ const App: React.FC = () => {
           const result = await mammoth.extractRawText({ arrayBuffer: buffer.buffer });
           textContentParts.push(`\n--- CONTEÚDO DO ARQUIVO DOCX: ${att.name} ---\n${result.value}\n--- FIM DO ARQUIVO DOCX ---\n`);
         } catch (e) {
-          textContentParts.push(`\n[ERRO: Não foi possível ler o arquivo ${att.name}.]\n`);
+          console.error(e);
+          textContentParts.push(`\n[ERRO: Não foi possível ler o arquivo ${att.name}. Certifique-se que é um DOCX válido.]\n`);
         }
       }
       else {
@@ -182,12 +172,11 @@ const App: React.FC = () => {
       timestamp: Date.now()
     };
 
-    // 2. Update Local State (Optimistic UI)
+    // 2. Optimistic UI Update
     setSessions(prev => prev.map(session => {
       if (session.id === currentSessionId) {
-        // Generate a title if it's the first message
-        const newTitle = session.messages.length === 0
-          ? (text.slice(0, 30) + (text.length > 30 ? '...' : ''))
+        const newTitle = session.messages.length === 0 
+          ? (text.slice(0, 30) + (text.length > 30 ? '...' : '')) 
           : session.title;
 
         return {
@@ -203,100 +192,48 @@ const App: React.FC = () => {
     setIsTyping(true);
 
     try {
-      // 3. REMOVED DIRECT GEMINI SDK CALL FOR SECURITY
-      // Instead, we call our own Backend Proxy
-
-      // 4. Get Current History for API
+      // 3. Prepare History for API
       const currentSession = sessions.find(s => s.id === currentSessionId);
-      const historyMessages = currentSession?.messages || []; // Histórico anterior (sem a msg atual que acabamos de criar)
+      const historyForApi = [...(currentSession?.messages || []), userMsg];
+      const previousMessages = historyForApi.slice(0, -1);
+      const currentMessage = historyForApi[historyForApi.length - 1];
 
-      const processMessageForOpenAI = async (msg: Message) => {
-        // 1. Acumula todo o texto (mensagem principal + conteúdo extraído de docs)
-        let fullText = msg.content || "";
-
+      // Process Attachments
+      const apiContents = await Promise.all(previousMessages.map(async (msg) => {
         const { inlineParts, textContent } = await processAttachmentsForApi(msg.attachments || []);
+        let finalContent = msg.content;
+        if (textContent) finalContent = (finalContent ? finalContent + "\n" : "") + textContent;
 
-        if (textContent) {
-          fullText = (fullText ? fullText + "\n\n--- ANEXO ---\n" : "") + textContent;
-        }
-
-        // REFORÇO DE PROMPT: Adiciona lembrete para seguir instruções se houver anexo (contexto longo)
-        if (textContent && fullText) {
-          fullText += "\n\n(IMPORTANTE: Siga estritamente as instruções do sistema quanto ao formato de resposta solicitado. Se foi pedido CSV, entregue APENAS CSV. Se foi pedido Diagnóstico, siga o modelo.)";
-        }
-
-        // 2. Processa Imagens
-        const imageParts: any[] = [];
-        inlineParts.forEach((part: any) => {
-          if (part.inlineData && part.inlineData.mimeType.startsWith("image/")) {
-            imageParts.push({
-              type: "image_url",
-              image_url: {
-                url: `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`
-              }
-            });
-          }
-        });
-
-        // 3. Monta o payload final
-        // Se não tem imagens, manda content como string simples (mais seguro e compatível)
-        if (imageParts.length === 0) {
-          // OpenAI não aceita content vazio, mas a UI não deixa enviar msg vazia. De qualquer forma, fallback.
-          return {
-            role: msg.role === 'user' ? 'user' : 'assistant',
-            content: fullText || " "
-          };
-        }
-
-        // Se tem imagens, manda array multimodal
-        const content: any[] = [];
-        if (fullText) {
-          content.push({ type: "text", text: fullText });
-        }
-        content.push(...imageParts);
+        const parts: any[] = [];
+        if (finalContent) parts.push({ text: finalContent });
+        parts.push(...inlineParts);
 
         return {
-          role: msg.role === 'user' ? 'user' : 'assistant',
-          content: content
+          role: msg.role === 'user' ? 'user' : 'model',
+          parts: parts
         };
-      };
+      }));
 
-      // Mapeia histórico
-      const apiMessages = await Promise.all(historyMessages.map(processMessageForOpenAI));
+      const { inlineParts, textContent } = await processAttachmentsForApi(currentMessage.attachments || []);
+      let finalCurrentText = currentMessage.content;
+      if (textContent) finalCurrentText = (finalCurrentText ? finalCurrentText + "\n" : "") + textContent;
+      
+      const currentParts: any[] = [];
+      if (finalCurrentText) currentParts.push({ text: finalCurrentText });
+      currentParts.push(...inlineParts);
 
-      // Adiciona mensagem atual
-      const currentMsgApi = await processMessageForOpenAI(userMsg);
-      apiMessages.push(currentMsgApi);
+      apiContents.push({ role: 'user', parts: currentParts });
 
-      // 5. Call Backend Proxy
-      const response = await fetch('/api/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o-mini',
-          messages: apiMessages,
-          systemInstruction: activeAgent.systemPrompt,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Erro na comunicação com o servidor.");
-      }
-
-      const aiText = data.text || "Não foi possível gerar uma resposta.";
-
-      // 6. Update UI with AI Response
+      // 4. Initialize Empty AI Message
+      const aiMsgId = (Date.now() + 1).toString();
       const aiMsg: Message = {
-        id: (Date.now() + 1).toString(),
+        id: aiMsgId,
         role: 'assistant',
-        content: aiText,
+        content: "", // Starts empty
         timestamp: Date.now()
       };
 
+      // Add empty message to UI immediately
       setSessions(prev => prev.map(session => {
         if (session.id === currentSessionId) {
           return {
@@ -308,13 +245,57 @@ const App: React.FC = () => {
         return session;
       }));
 
-    } catch (error: any) {
-      console.error("Erro API Gemini:", error);
+      // 5. Call Backend with Edge Streaming
+      const response = await fetch('/api/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'gemini-3-flash-preview', // Force Flash for speed
+          contents: apiContents,
+          systemInstruction: activeAgent.systemPrompt,
+        }),
+      });
 
+      if (!response.ok) {
+        throw new Error(`Server Error: ${response.status} ${response.statusText}`);
+      }
+      
+      if (!response.body) throw new Error("No response body received");
+
+      // 6. Read Stream
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let fullText = "";
+      
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        const chunk = decoder.decode(value, { stream: true });
+        if (chunk) {
+          fullText += chunk;
+          
+          setSessions(prev => prev.map(session => {
+            if (session.id === currentSessionId) {
+               const updatedMessages = session.messages.map(m => 
+                 m.id === aiMsgId ? { ...m, content: fullText } : m
+               );
+               return { ...session, messages: updatedMessages };
+            }
+            return session;
+          }));
+        }
+      }
+
+    } catch (error: any) {
+      console.error("Erro Chat:", error);
+      
       const errorMsg: Message = {
-        id: (Date.now() + 1).toString(),
+        id: (Date.now() + 2).toString(),
         role: 'assistant',
-        content: `[ERRO] ${error.message || "Erro desconhecido."}`,
+        content: `**Erro de conexão:** ${error.message}. Tente novamente.`,
         timestamp: Date.now()
       };
 
@@ -333,8 +314,6 @@ const App: React.FC = () => {
     }
   };
 
-  // --- Render ---
-
   if (!isAuthenticated) {
     return <Login onLogin={handleLogin} />;
   }
@@ -345,7 +324,7 @@ const App: React.FC = () => {
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#F9FAFB]">
-      <Sidebar
+      <Sidebar 
         agents={AGENTS}
         selectedAgentId={selectedAgentId}
         onSelectAgent={handleSelectAgent}
@@ -358,7 +337,7 @@ const App: React.FC = () => {
 
       <main className="flex-1 flex flex-col relative h-full">
         {activeAgent && activeSession ? (
-          <ChatArea
+          <ChatArea 
             agent={activeAgent}
             messages={activeMessages}
             onSendMessage={handleSendMessage}
@@ -368,7 +347,7 @@ const App: React.FC = () => {
         ) : (
           <div className="flex items-center justify-center h-full text-gray-400 flex-col gap-4">
             <div className="w-20 h-20 bg-gray-100 rounded-3xl flex items-center justify-center text-[#D4AF37]">
-              <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-message-square-dashed"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /><path d="M9 10h.01" /><path d="M15 10h.01" /><path d="M12 10h.01" /></svg>
+               <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-message-square-dashed"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M9 10h.01"/><path d="M15 10h.01"/><path d="M12 10h.01"/></svg>
             </div>
             <p>Selecione um agente ou inicie uma nova conversa.</p>
           </div>
