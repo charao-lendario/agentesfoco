@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 // Removido import direto do GoogleGenAI para segurança
 // @ts-ignore
 import * as mammoth from "mammoth";
+import * as XLSX from 'xlsx';
 import { Agent, Message, User, ChatSession, Attachment } from './types';
 import { AGENTS } from './config/agents';
 import Sidebar from './components/Sidebar';
@@ -131,9 +132,10 @@ const App: React.FC = () => {
     const textContentParts: string[] = [];
 
     for (const att of attachments) {
-      const isMedia = att.type.startsWith('image/') || att.type === 'application/pdf';
+      // Modificado: PDF não é mais tratado como imagem/media direta para o GPT-4o
+      const isImage = att.type.startsWith('image/');
 
-      if (isMedia) {
+      if (isImage) {
         const base64Data = att.data.split(',')[1];
         inlineParts.push({
           inlineData: {
@@ -141,6 +143,49 @@ const App: React.FC = () => {
             data: base64Data
           }
         });
+      }
+      else if (att.type === 'application/pdf') {
+        try {
+          // Importação dinâmica para evitar problemas de SSR/Build se o pdfjs não estiver setup
+          // Vamos usar o pdfjs v4+ (que usa modules) se possível, ou fallback.
+          // Como estamos em ambiente browser (client-side), podemos usar import() ou window se importado via script.
+          // Mas como instalamos via npm, vamos tentar importar direto no topo ou aqui.
+          // Para simplificar e evitar erros de "GlobalWorkerOptions undefined" sem import no topo,
+          // vou usar uma abordagem robusta de importação dinâmica + CDN worker.
+
+          const pdfjsLib = await import('pdfjs-dist');
+
+          // Configura worker (essencial para o pdfjs funcionar)
+          // Usando unpkg para garantir compatibilidade com a versão instalada ou genérica recente
+          if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+          }
+
+          const base64Data = att.data.split(',')[1];
+          const binaryString = atob(base64Data);
+          const len = binaryString.length;
+          const bytes = new Uint8Array(len);
+          for (let i = 0; i < len; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
+
+          const loadingTask = pdfjsLib.getDocument({ data: bytes });
+          const pdf = await loadingTask.promise;
+
+          let fullText = "";
+          for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const textContent = await page.getTextContent();
+            const pageText = textContent.items.map((item: any) => item.str).join(' ');
+            fullText += `\n--- PÁGINA ${i} ---\n${pageText}`;
+          }
+
+          textContentParts.push(`\n--- CONTEÚDO DO PDF: ${att.name} ---\n${fullText}\n--- FIM DO PDF ---\n`);
+
+        } catch (e) {
+          console.error("Erro ao ler PDF:", e);
+          textContentParts.push(`\n[ERRO: Não foi possível ler o texto do arquivo PDF ${att.name}. Certifique-se que contém texto selecionável.]\n`);
+        }
       }
       else if (att.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
         try {
@@ -152,8 +197,33 @@ const App: React.FC = () => {
           textContentParts.push(`\n[ERRO: Não foi possível ler o arquivo ${att.name}.]\n`);
         }
       }
+      else if (att.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || att.type === 'application/vnd.ms-excel') {
+        try {
+          const base64Data = att.data.split(',')[1];
+          const buffer = base64ToUint8Array(base64Data);
+          const workbook = XLSX.read(buffer, { type: 'array' });
+
+          // Processa todas as abas ou pelo menos a primeira
+          let allSheetsText = "";
+
+          workbook.SheetNames.forEach(sheetName => {
+            const worksheet = workbook.Sheets[sheetName];
+            const csvContent = XLSX.utils.sheet_to_csv(worksheet);
+            if (csvContent.trim()) {
+              allSheetsText += `\n--- ABA: ${sheetName} ---\n${csvContent}\n`;
+            }
+          });
+
+          textContentParts.push(`\n--- CONTEÚDO DA PLANILHA: ${att.name} ---\n${allSheetsText}\n--- FIM DA PLANILHA ---\n`);
+        } catch (e) {
+          console.error("Erro ao processar planilha:", e);
+          textContentParts.push(`\n[ERRO: Não foi possível ler a planilha ${att.name}.]\n`);
+        }
+      }
+
       else {
         try {
+          // Tentativa genérica para texto (CSV, TXT, MD, etc)
           const base64Data = att.data.split(',')[1];
           const bytes = base64ToUint8Array(base64Data);
           const text = new TextDecoder().decode(bytes);

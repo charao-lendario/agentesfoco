@@ -40,10 +40,10 @@ const ChatArea: React.FC<ChatAreaProps> = ({ agent, messages, onSendMessage, onN
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const newAttachments: Attachment[] = [];
-      
+
       for (let i = 0; i < e.target.files.length; i++) {
         const file = e.target.files[i];
-        
+
         // Convert to Base64
         const base64 = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
@@ -58,7 +58,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ agent, messages, onSendMessage, onN
           data: base64
         });
       }
-      
+
       setSelectedFiles(prev => [...prev, ...newAttachments]);
       // Reset input so same file can be selected again if needed
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -83,12 +83,12 @@ const ChatArea: React.FC<ChatAreaProps> = ({ agent, messages, onSendMessage, onN
 
   const downloadCSV = (content: string) => {
     let csvContent = content.replace(/```csv/g, '').replace(/```/g, '');
-    const BOM = "\uFEFF"; 
+    const BOM = "\uFEFF";
     const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `relatorio_projetos_${new Date().toISOString().slice(0,10)}.csv`);
+    link.setAttribute('download', `relatorio_projetos_${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -101,11 +101,11 @@ const ChatArea: React.FC<ChatAreaProps> = ({ agent, messages, onSendMessage, onN
     setIsGeneratingPdf(messageId);
 
     const opt = {
-      margin:       [10, 10, 10, 10], // top, left, bottom, right in mm
-      filename:     `Relatorio_${agent.name}_${new Date().toISOString().slice(0,10)}.pdf`,
-      image:        { type: 'jpeg', quality: 0.98 },
-      html2canvas:  { scale: 2, useCORS: true },
-      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      margin: [10, 10, 10, 10], // top, left, bottom, right in mm
+      filename: `Relatorio_${agent.name}_${new Date().toISOString().slice(0, 10)}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
     html2pdf().set(opt).from(element).save().then(() => {
@@ -127,12 +127,12 @@ const ChatArea: React.FC<ChatAreaProps> = ({ agent, messages, onSendMessage, onN
             </p>
           </div>
         </div>
-        
+
         <div className="flex items-center gap-3">
           <div className="hidden md:block text-xs text-gray-400 bg-gray-50 px-2 py-1 rounded border border-gray-100">
             Modelo: Gemini 3.0 Pro
           </div>
-          <button 
+          <button
             onClick={onNewChat}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-medium text-gray-600 hover:text-[#D4AF37] hover:border-[#D4AF37] hover:bg-yellow-50/50 transition-all shadow-sm"
             title="Limpar histórico e iniciar nova conversa"
@@ -157,113 +157,111 @@ const ChatArea: React.FC<ChatAreaProps> = ({ agent, messages, onSendMessage, onN
           messages.map((msg) => (
             <div
               key={msg.id}
-              className={`flex w-full ${
-                msg.role === 'user' ? 'justify-end' : 'justify-start'
-              }`}
+              className={`flex w-full ${msg.role === 'user' ? 'justify-end' : 'justify-start'
+                }`}
             >
               <div
-                className={`max-w-[85%] rounded-2xl px-5 py-4 shadow-sm text-sm leading-relaxed ${
-                  msg.role === 'user'
+                className={`max-w-[85%] rounded-2xl px-5 py-4 shadow-sm text-sm leading-relaxed ${msg.role === 'user'
                     ? 'bg-[#0A192F] text-white rounded-br-none'
                     : 'bg-white border border-gray-100 text-gray-800 rounded-bl-none w-full'
-                }`}
+                  }`}
               >
-                 {/* Attachments Display in Message */}
-                 {msg.attachments && msg.attachments.length > 0 && (
-                   <div className="mb-3 flex flex-wrap gap-2">
-                     {msg.attachments.map((att, idx) => (
-                       <div key={idx} className={`flex items-center gap-2 p-2 rounded-lg max-w-full ${msg.role === 'user' ? 'bg-white/10' : 'bg-gray-100'}`}>
-                          {att.type.startsWith('image/') ? (
-                             <img src={att.data} alt={att.name} className="h-16 w-16 object-cover rounded-md" />
-                          ) : (
-                             <div className={`p-2 rounded-md ${msg.role === 'user' ? 'bg-white/20' : 'bg-gray-200'}`}>
-                               <FileText size={24} />
-                             </div>
-                          )}
-                          <div className="overflow-hidden">
-                            <p className="truncate text-xs font-medium w-24">{att.name}</p>
-                            <p className="text-[10px] opacity-70 uppercase">{att.name.split('.').pop()}</p>
+                {/* Attachments Display in Message */}
+                {msg.attachments && msg.attachments.length > 0 && (
+                  <div className="mb-3 flex flex-wrap gap-2">
+                    {msg.attachments.map((att, idx) => (
+                      <div key={idx} className={`flex items-center gap-2 p-2 rounded-lg max-w-full ${msg.role === 'user' ? 'bg-white/10' : 'bg-gray-100'}`}>
+                        {att.type.startsWith('image/') ? (
+                          <img src={att.data} alt={att.name} className="h-16 w-16 object-cover rounded-md" />
+                        ) : (
+                          <div className={`p-2 rounded-md ${msg.role === 'user' ? 'bg-white/20' : 'bg-gray-200'}`}>
+                            <FileText size={24} />
                           </div>
-                       </div>
-                     ))}
-                   </div>
-                 )}
-
-                 {/* CONTENT RENDERING LOGIC */}
-                 {msg.role === 'assistant' && hasCSVHeader(msg.content) ? (
-                   <div className="flex flex-col items-start gap-3 py-1">
-                     <p className="font-medium text-gray-800 flex items-center gap-2">
-                       <Sparkles size={14} className="text-[#D4AF37]" />
-                       Arquivo gerado com sucesso!
-                     </p>
-                     <button 
-                        onClick={() => downloadCSV(msg.content)}
-                        className="flex items-center gap-2 px-4 py-3 bg-green-50 text-green-700 border border-green-200 rounded-lg hover:bg-green-100 transition-all shadow-sm font-medium"
-                      >
-                        <FileSpreadsheet size={20} />
-                        <div>
-                           <span className="block text-xs font-bold">Baixar Planilha</span>
-                           <span className="block text-[10px] opacity-80 font-normal">Formato .csv (Excel)</span>
+                        )}
+                        <div className="overflow-hidden">
+                          <p className="truncate text-xs font-medium w-24">{att.name}</p>
+                          <p className="text-[10px] opacity-70 uppercase">{att.name.split('.').pop()}</p>
                         </div>
-                      </button>
-                   </div>
-                 ) : msg.role === 'assistant' ? (
-                   /* Rich Markdown Rendering for Assistant */
-                   <div className="flex flex-col gap-2">
-                     <div 
-                        id={`msg-content-${msg.id}`} 
-                        className="prose prose-sm max-w-none prose-headings:text-[#0A192F] prose-a:text-[#D4AF37] prose-strong:text-[#0A192F] prose-slate"
-                     >
-                       <ReactMarkdown 
-                          remarkPlugins={[remarkGfm]}
-                          components={{
-                            table: ({node, ...props}) => (
-                              <div className="overflow-x-auto my-4 border border-gray-200 rounded-lg">
-                                <table className="min-w-full divide-y divide-gray-200" {...props} />
-                              </div>
-                            ),
-                            thead: ({node, ...props}) => <thead className="bg-gray-50" {...props} />,
-                            th: ({node, ...props}) => <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" {...props} />,
-                            td: ({node, ...props}) => <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 border-t border-gray-100" {...props} />,
-                          }}
-                       >
-                         {msg.content}
-                       </ReactMarkdown>
-                     </div>
-                     
-                     {/* PDF Download Button for Assistant Messages (if reasonably long) */}
-                     {msg.content.length > 200 && (
-                       <div className="flex justify-start mt-2 pt-2 border-t border-gray-100">
-                         <button
-                           onClick={() => generatePDF(`msg-content-${msg.id}`, msg.id)}
-                           disabled={isGeneratingPdf === msg.id}
-                           className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-gray-500 hover:text-[#D4AF37] hover:bg-gray-50 rounded-lg transition-colors"
-                         >
-                           {isGeneratingPdf === msg.id ? (
-                             <span className="animate-pulse">Gerando PDF...</span>
-                           ) : (
-                             <>
-                               <FileDown size={14} />
-                               Baixar como PDF
-                             </>
-                           )}
-                         </button>
-                       </div>
-                     )}
-                   </div>
-                 ) : (
-                   /* Simple Text for User */
-                   <div className="whitespace-pre-wrap">{msg.content}</div>
-                 )}
+                      </div>
+                    ))}
+                  </div>
+                )}
 
-                 <div className={`text-[10px] mt-2 opacity-60 ${msg.role === 'user' ? 'text-gray-300' : 'text-gray-400'}`}>
-                    {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                 </div>
+                {/* CONTENT RENDERING LOGIC */}
+                {msg.role === 'assistant' && hasCSVHeader(msg.content) ? (
+                  <div className="flex flex-col items-start gap-3 py-1">
+                    <p className="font-medium text-gray-800 flex items-center gap-2">
+                      <Sparkles size={14} className="text-[#D4AF37]" />
+                      Arquivo gerado com sucesso!
+                    </p>
+                    <button
+                      onClick={() => downloadCSV(msg.content)}
+                      className="flex items-center gap-2 px-4 py-3 bg-green-50 text-green-700 border border-green-200 rounded-lg hover:bg-green-100 transition-all shadow-sm font-medium"
+                    >
+                      <FileSpreadsheet size={20} />
+                      <div>
+                        <span className="block text-xs font-bold">Baixar Planilha</span>
+                        <span className="block text-[10px] opacity-80 font-normal">Formato .csv (Excel)</span>
+                      </div>
+                    </button>
+                  </div>
+                ) : msg.role === 'assistant' ? (
+                  /* Rich Markdown Rendering for Assistant */
+                  <div className="flex flex-col gap-2">
+                    <div
+                      id={`msg-content-${msg.id}`}
+                      className="prose prose-sm max-w-none prose-headings:text-[#0A192F] prose-a:text-[#D4AF37] prose-strong:text-[#0A192F] prose-slate"
+                    >
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          table: ({ node, ...props }) => (
+                            <div className="overflow-x-auto my-4 border border-gray-200 rounded-lg">
+                              <table className="min-w-full divide-y divide-gray-200" {...props} />
+                            </div>
+                          ),
+                          thead: ({ node, ...props }) => <thead className="bg-gray-50" {...props} />,
+                          th: ({ node, ...props }) => <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" {...props} />,
+                          td: ({ node, ...props }) => <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 border-t border-gray-100" {...props} />,
+                        }}
+                      >
+                        {msg.content}
+                      </ReactMarkdown>
+                    </div>
+
+                    {/* PDF Download Button for Assistant Messages (if reasonably long) */}
+                    {msg.content.length > 200 && (
+                      <div className="flex justify-start mt-2 pt-2 border-t border-gray-100">
+                        <button
+                          onClick={() => generatePDF(`msg-content-${msg.id}`, msg.id)}
+                          disabled={isGeneratingPdf === msg.id}
+                          className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-gray-500 hover:text-[#D4AF37] hover:bg-gray-50 rounded-lg transition-colors"
+                        >
+                          {isGeneratingPdf === msg.id ? (
+                            <span className="animate-pulse">Gerando PDF...</span>
+                          ) : (
+                            <>
+                              <FileDown size={14} />
+                              Baixar como PDF
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  /* Simple Text for User */
+                  <div className="whitespace-pre-wrap">{msg.content}</div>
+                )}
+
+                <div className={`text-[10px] mt-2 opacity-60 ${msg.role === 'user' ? 'text-gray-300' : 'text-gray-400'}`}>
+                  {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </div>
               </div>
             </div>
           ))
         )}
-        
+
         {/* Typing Indicator */}
         {isTyping && (
           <div className="flex justify-start">
@@ -279,7 +277,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ agent, messages, onSendMessage, onN
 
       {/* Input Area */}
       <div className="p-4 bg-white border-t border-gray-200 shrink-0">
-        
+
         {/* File Preview Area */}
         {selectedFiles.length > 0 && (
           <div className="flex gap-2 mb-3 overflow-x-auto pb-2 scrollbar-hide">
@@ -292,7 +290,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ agent, messages, onSendMessage, onN
                     <FileText className="text-gray-400" size={24} />
                   )}
                 </div>
-                <button 
+                <button
                   onClick={() => removeFile(idx)}
                   className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
                 >
@@ -305,15 +303,15 @@ const ChatArea: React.FC<ChatAreaProps> = ({ agent, messages, onSendMessage, onN
         )}
 
         <form onSubmit={handleSend} className="max-w-4xl mx-auto relative flex gap-2 items-end">
-          <input 
+          <input
             type="file"
             multiple
             ref={fileInputRef}
             className="hidden"
             onChange={handleFileSelect}
-            accept=".pdf,.txt,.md,.jpg,.jpeg,.png,.html,.css,.js,.ts,.json,.csv,.doc,.docx"
+            accept=".pdf,.txt,.md,.jpg,.jpeg,.png,.html,.css,.js,.ts,.json,.csv,.doc,.docx,.xls,.xlsx"
           />
-          
+
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
