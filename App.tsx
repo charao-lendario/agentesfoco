@@ -8,6 +8,7 @@ import { AGENTS } from './config/agents';
 import Sidebar from './components/Sidebar';
 import ChatArea from './components/ChatArea';
 import Login from './components/Login';
+import { supabase } from './lib/supabase';
 
 // Mock User Data
 const MOCK_USER: User = {
@@ -30,29 +31,116 @@ const App: React.FC = () => {
 
   const [isTyping, setIsTyping] = useState<boolean>(false);
 
+  // --- Supabase Helpers ---
+
+  const loadSessionsFromSupabase = async (userEmail: string) => {
+    try {
+      const { data: sessionsData, error: sessionsError } = await supabase
+        .from('sessions')
+        .select('*')
+        .eq('user_email', userEmail)
+        .order('last_modified', { ascending: false });
+
+      if (sessionsError) {
+        console.error('Erro ao carregar sessões:', sessionsError);
+        return;
+      }
+
+      if (!sessionsData || sessionsData.length === 0) {
+        setSessions([]);
+        return;
+      }
+
+      const sessionIds = sessionsData.map(s => s.id);
+
+      const { data: messagesData, error: messagesError } = await supabase
+        .from('messages')
+        .select('*')
+        .in('session_id', sessionIds)
+        .order('timestamp', { ascending: true });
+
+      if (messagesError) {
+        console.error('Erro ao carregar mensagens:', messagesError);
+      }
+
+      // Agrupa mensagens por session_id
+      const messagesBySession: Record<string, Message[]> = {};
+      (messagesData || []).forEach((msg: any) => {
+        if (!messagesBySession[msg.session_id]) {
+          messagesBySession[msg.session_id] = [];
+        }
+        messagesBySession[msg.session_id].push({
+          id: msg.id,
+          role: msg.role,
+          content: msg.content,
+          attachments: msg.attachments_meta || [],
+          timestamp: msg.timestamp
+        });
+      });
+
+      const sessionsWithMessages: ChatSession[] = sessionsData.map((session: any) => ({
+        id: session.id,
+        agentId: session.agent_id,
+        title: session.title,
+        lastModified: session.last_modified,
+        messages: messagesBySession[session.id] || []
+      }));
+
+      setSessions(sessionsWithMessages);
+    } catch (err) {
+      console.error('Erro ao carregar dados do Supabase:', err);
+    }
+  };
+
+  const saveSessionToSupabase = async (session: ChatSession, userEmail: string) => {
+    await supabase.from('sessions').upsert({
+      id: session.id,
+      user_email: userEmail,
+      agent_id: session.agentId,
+      title: session.title,
+      last_modified: session.lastModified
+    });
+  };
+
+  const saveMessageToSupabase = async (message: Message, sessionId: string) => {
+    const attachmentsMeta = (message.attachments || []).map(att => ({
+      name: att.name,
+      type: att.type
+    }));
+
+    await supabase.from('messages').upsert({
+      id: message.id,
+      session_id: sessionId,
+      role: message.role,
+      content: message.content,
+      attachments_meta: attachmentsMeta,
+      timestamp: message.timestamp
+    });
+  };
+
+  const updateSessionMetaInSupabase = async (sessionId: string, updates: { title?: string, last_modified?: number }) => {
+    const cleanUpdates: Record<string, any> = {};
+    if (updates.title) cleanUpdates.title = updates.title;
+    if (updates.last_modified) cleanUpdates.last_modified = updates.last_modified;
+    if (Object.keys(cleanUpdates).length > 0) {
+      await supabase.from('sessions').update(cleanUpdates).eq('id', sessionId);
+    }
+  };
+
   // --- Effects ---
 
-  // Restore session (simulated)
+  // Restaura usuário e carrega sessões do Supabase
   useEffect(() => {
     const savedUser = localStorage.getItem('agentes_foco_user');
     if (savedUser) {
-      setCurrentUser(JSON.parse(savedUser));
+      const user = JSON.parse(savedUser);
+      setCurrentUser(user);
       setIsAuthenticated(true);
-
-      // Load sessions from local storage if available
-      const savedSessions = localStorage.getItem('agentes_foco_sessions');
-      if (savedSessions) {
-        setSessions(JSON.parse(savedSessions));
-      }
+      loadSessionsFromSupabase(user.email);
     }
+    // Limpa dados antigos do localStorage (migração)
+    localStorage.removeItem('agentes_foco_sessions');
   }, []);
-
-  // Persist sessions whenever they change
-  useEffect(() => {
-    if (isAuthenticated) {
-      localStorage.setItem('agentes_foco_sessions', JSON.stringify(sessions));
-    }
-  }, [sessions, isAuthenticated]);
 
   // --- Handlers ---
 
@@ -61,13 +149,13 @@ const App: React.FC = () => {
     setCurrentUser(user);
     setIsAuthenticated(true);
     localStorage.setItem('agentes_foco_user', JSON.stringify(user));
+    loadSessionsFromSupabase(email);
   };
 
   const handleLogout = () => {
     setIsAuthenticated(false);
     setCurrentUser(null);
     localStorage.removeItem('agentes_foco_user');
-    // We keep the sessions in local storage for demonstration, but clear state
     setSessions([]);
     setCurrentSessionId(null);
     setSelectedAgentId(null);
@@ -85,6 +173,11 @@ const App: React.FC = () => {
     setSessions(prev => [...prev, newSession]);
     setCurrentSessionId(newSession.id);
     setSelectedAgentId(agentId);
+
+    // Persiste no Supabase
+    if (currentUser) {
+      saveSessionToSupabase(newSession, currentUser.email);
+    }
   };
 
   const handleSelectAgent = (agentId: string) => {
@@ -132,6 +225,9 @@ const App: React.FC = () => {
     const textContentParts: string[] = [];
 
     for (const att of attachments) {
+      // Se o attachment não tem data (carregado do Supabase), pula o processamento
+      if (!att.data) continue;
+
       // Modificado: PDF não é mais tratado como imagem/media direta para o GPT-4o
       const isImage = att.type.startsWith('image/');
 
@@ -146,17 +242,8 @@ const App: React.FC = () => {
       }
       else if (att.type === 'application/pdf') {
         try {
-          // Importação dinâmica para evitar problemas de SSR/Build se o pdfjs não estiver setup
-          // Vamos usar o pdfjs v4+ (que usa modules) se possível, ou fallback.
-          // Como estamos em ambiente browser (client-side), podemos usar import() ou window se importado via script.
-          // Mas como instalamos via npm, vamos tentar importar direto no topo ou aqui.
-          // Para simplificar e evitar erros de "GlobalWorkerOptions undefined" sem import no topo,
-          // vou usar uma abordagem robusta de importação dinâmica + CDN worker.
-
           const pdfjsLib = await import('pdfjs-dist');
 
-          // Configura worker (essencial para o pdfjs funcionar)
-          // Usando unpkg para garantir compatibilidade com a versão instalada ou genérica recente
           if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
             pdfjsLib.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
           }
@@ -253,10 +340,11 @@ const App: React.FC = () => {
     };
 
     // 2. Update Local State (Optimistic UI)
+    let newTitle = '';
     setSessions(prev => prev.map(session => {
       if (session.id === currentSessionId) {
         // Generate a title if it's the first message
-        const newTitle = session.messages.length === 0
+        newTitle = session.messages.length === 0
           ? (text.slice(0, 30) + (text.length > 30 ? '...' : ''))
           : session.title;
 
@@ -270,15 +358,18 @@ const App: React.FC = () => {
       return session;
     }));
 
+    // 3. Persiste mensagem do usuário no Supabase (sem base64 dos attachments)
+    saveMessageToSupabase(userMsg, currentSessionId);
+    if (newTitle) {
+      updateSessionMetaInSupabase(currentSessionId, { title: newTitle, last_modified: Date.now() });
+    }
+
     setIsTyping(true);
 
     try {
-      // 3. REMOVED DIRECT GEMINI SDK CALL FOR SECURITY
-      // Instead, we call our own Backend Proxy
-
       // 4. Get Current History for API
       const currentSession = sessions.find(s => s.id === currentSessionId);
-      const historyMessages = currentSession?.messages || []; // Histórico anterior (sem a msg atual que acabamos de criar)
+      const historyMessages = currentSession?.messages || [];
 
       const processMessageForOpenAI = async (msg: Message) => {
         // 1. Acumula todo o texto (mensagem principal + conteúdo extraído de docs)
@@ -309,9 +400,7 @@ const App: React.FC = () => {
         });
 
         // 3. Monta o payload final
-        // Se não tem imagens, manda content como string simples (mais seguro e compatível)
         if (imageParts.length === 0) {
-          // OpenAI não aceita content vazio, mas a UI não deixa enviar msg vazia. De qualquer forma, fallback.
           return {
             role: msg.role === 'user' ? 'user' : 'assistant',
             content: fullText || " "
@@ -338,35 +427,41 @@ const App: React.FC = () => {
       const currentMsgApi = await processMessageForOpenAI(userMsg);
       apiMessages.push(currentMsgApi);
 
-      // 5. Call Backend Proxy
+      // 5. Call Backend Proxy (Gemini via streaming)
       const response = await fetch('/api/generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'gpt-4o-mini',
           messages: apiMessages,
           systemInstruction: activeAgent.systemPrompt,
         }),
       });
 
-      const data = await response.json();
-
       if (!response.ok) {
-        throw new Error(data.error || "Erro na comunicação com o servidor.");
+        const errorData = await response.json().catch(() => ({ error: 'Erro desconhecido' }));
+        throw new Error(errorData.error || "Erro na comunicação com o servidor.");
       }
 
-      const aiText = data.text || "Não foi possível gerar uma resposta.";
+      // 6. Lê streaming de texto e atualiza UI progressivamente
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
 
-      // 6. Update UI with AI Response
+      if (!reader) {
+        throw new Error("Resposta sem corpo (body).");
+      }
+
+      // Cria a mensagem do assistente vazia para ir preenchendo
+      const aiMsgId = (Date.now() + 1).toString();
       const aiMsg: Message = {
-        id: (Date.now() + 1).toString(),
+        id: aiMsgId,
         role: 'assistant',
-        content: aiText,
+        content: '',
         timestamp: Date.now()
       };
 
+      // Adiciona msg vazia primeiro (só no state, NÃO salva no Supabase ainda)
       setSessions(prev => prev.map(session => {
         if (session.id === currentSessionId) {
           return {
@@ -377,6 +472,39 @@ const App: React.FC = () => {
         }
         return session;
       }));
+
+      // Lê chunks do stream e vai atualizando a mensagem
+      let fullText = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        fullText += chunk;
+
+        // Atualiza a mensagem do assistente com o texto acumulado
+        const currentText = fullText;
+        setSessions(prev => prev.map(session => {
+          if (session.id === currentSessionId) {
+            return {
+              ...session,
+              messages: session.messages.map(m =>
+                m.id === aiMsgId ? { ...m, content: currentText } : m
+              ),
+              lastModified: Date.now()
+            };
+          }
+          return session;
+        }));
+      }
+
+      // 7. Stream finalizado - salva mensagem completa do assistente no Supabase
+      const finalAiMsg: Message = {
+        ...aiMsg,
+        content: fullText
+      };
+      saveMessageToSupabase(finalAiMsg, currentSessionId);
+      updateSessionMetaInSupabase(currentSessionId, { last_modified: Date.now() }).catch(() => {});
 
     } catch (error: any) {
       console.error("Erro API Gemini:", error);
@@ -398,6 +526,9 @@ const App: React.FC = () => {
         }
         return session;
       }));
+
+      // Salva mensagem de erro no Supabase
+      saveMessageToSupabase(errorMsg, currentSessionId);
     } finally {
       setIsTyping(false);
     }

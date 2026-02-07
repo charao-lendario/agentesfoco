@@ -171,7 +171,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ agent, messages, onSendMessage, onN
                   <div className="mb-3 flex flex-wrap gap-2">
                     {msg.attachments.map((att, idx) => (
                       <div key={idx} className={`flex items-center gap-2 p-2 rounded-lg max-w-full ${msg.role === 'user' ? 'bg-white/10' : 'bg-gray-100'}`}>
-                        {att.type.startsWith('image/') ? (
+                        {att.type.startsWith('image/') && att.data ? (
                           <img src={att.data} alt={att.name} className="h-16 w-16 object-cover rounded-md" />
                         ) : (
                           <div className={`p-2 rounded-md ${msg.role === 'user' ? 'bg-white/20' : 'bg-gray-200'}`}>
