@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Agent, Message, Attachment, ProGrowthClient } from '../types';
+import { Agent, Message, Attachment, ProGrowthClient, LlmProvider } from '../types';
 import { Send, Bot, Sparkles, Paperclip, X, FileText, PlusCircle, Download, FileSpreadsheet, FileDown, CheckCircle, ArrowRight, FileOutput } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -14,9 +14,11 @@ interface ChatAreaProps {
   isTyping: boolean;
   selectedProGrowthClient?: ProGrowthClient | null;
   onAdvanceToPhase2?: () => void;
+  llmProvider: LlmProvider;
+  onLlmProviderChange: (provider: LlmProvider) => void;
 }
 
-const ChatArea: React.FC<ChatAreaProps> = ({ agent, messages, onSendMessage, onNewChat, isTyping, selectedProGrowthClient, onAdvanceToPhase2 }) => {
+const ChatArea: React.FC<ChatAreaProps> = ({ agent, messages, onSendMessage, onNewChat, isTyping, selectedProGrowthClient, onAdvanceToPhase2, llmProvider, onLlmProviderChange }) => {
   const [inputText, setInputText] = useState('');
   const [selectedFiles, setSelectedFiles] = useState<Attachment[]>([]);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState<string | null>(null);
@@ -176,9 +178,40 @@ const ChatArea: React.FC<ChatAreaProps> = ({ agent, messages, onSendMessage, onN
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="hidden md:block text-xs text-gray-400 bg-gray-50 px-2 py-1 rounded border border-gray-100">
-            Modelo: Gemini 3.0 Pro
+          {/* LLM Provider Selector */}
+          <div className="hidden md:flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+            <button
+              onClick={() => onLlmProviderChange('openai')}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all"
+              style={
+                llmProvider === 'openai'
+                  ? { backgroundColor: '#2563EB', color: 'white', boxShadow: '0 1px 3px rgba(37,99,235,0.4)' }
+                  : { color: '#6B7280', backgroundColor: 'transparent' }
+              }
+              title="Usar OpenAI GPT-4o Mini"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 4.9807 4.1818a5.9847 5.9847 0 0 0-3.9977 2.9 6.0462 6.0462 0 0 0 .7427 7.0966 5.98 5.98 0 0 0 .511 4.9107 6.051 6.051 0 0 0 6.5146 2.9001A5.9847 5.9847 0 0 0 13.2599 24a6.0557 6.0557 0 0 0 5.7718-4.2058 5.9894 5.9894 0 0 0 3.9977-2.9001 6.0557 6.0557 0 0 0-.7475-7.0729zm-9.022 12.6081a4.4755 4.4755 0 0 1-2.8764-1.0408l.1419-.0804 4.7783-2.7582a.7948.7948 0 0 0 .3927-.6813v-6.7369l2.02 1.1686a.071.071 0 0 1 .038.052v5.5826a4.504 4.504 0 0 1-4.4945 4.4944zm-9.6607-4.1254a4.4708 4.4708 0 0 1-.5346-3.0137l.142.0852 4.783 2.7582a.7712.7712 0 0 0 .7806 0l5.8428-3.3685v2.3324a.0804.0804 0 0 1-.0332.0615L9.74 19.9502a4.4992 4.4992 0 0 1-6.1408-1.6464zM2.3408 7.8956a4.485 4.485 0 0 1 2.3655-1.9728V11.6a.7664.7664 0 0 0 .3879.6765l5.8144 3.3543-2.0201 1.1685a.0757.0757 0 0 1-.071 0l-4.8303-2.7865A4.504 4.504 0 0 1 2.3408 7.872zm16.5963 3.8558L13.1038 8.364 15.1192 7.2a.0757.0757 0 0 1 .071 0l4.8303 2.7913a4.4944 4.4944 0 0 1-.6765 8.1042v-5.6772a.79.79 0 0 0-.407-.667zm2.0107-3.0231l-.142-.0852-4.7735-2.7818a.7759.7759 0 0 0-.7854 0L9.409 9.2297V6.8974a.0662.0662 0 0 1 .0284-.0615l4.8303-2.7866a4.4992 4.4992 0 0 1 6.6802 4.66zM8.3065 12.863l-2.02-1.1638a.0804.0804 0 0 1-.038-.0567V6.0742a4.4992 4.4992 0 0 1 7.3757-3.4537l-.142.0805L8.704 5.459a.7948.7948 0 0 0-.3927.6813zm1.0976-2.3654l2.602-1.4998 2.6069 1.4998v2.9994l-2.5974 1.4997-2.6067-1.4997Z"/>
+              </svg>
+              OpenAI
+            </button>
+            <button
+              onClick={() => onLlmProviderChange('claude')}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all"
+              style={
+                llmProvider === 'claude'
+                  ? { backgroundColor: '#EA580C', color: 'white', boxShadow: '0 1px 3px rgba(234,88,12,0.4)' }
+                  : { color: '#6B7280', backgroundColor: 'transparent' }
+              }
+              title="Usar Claude Sonnet 4.6"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M17.304 1.273c-2.178-.001-3.99 1.37-4.662 3.26-.672-1.89-2.483-3.261-4.661-3.26C5.303 1.273 3 3.576 3 6.454c0 .612.099 1.198.274 1.75H3.26L12 21.273l8.74-13.069h-.014c.175-.552.274-1.138.274-1.75 0-2.878-2.303-5.181-5.696-5.181zM7.832 13.93L5.77 10.764a4.145 4.145 0 0 1-.77-2.31c0-2.3 1.843-4.163 4.117-4.163 1.737 0 3.23 1.062 3.883 2.573L7.832 13.93zm8.336 0-5.168-7.073c.653-1.51 2.145-2.572 3.882-2.572 2.275 0 4.118 1.862 4.118 4.162a4.15 4.15 0 0 1-.77 2.31L16.168 13.93z"/>
+              </svg>
+              Claude
+            </button>
           </div>
+
           <button
             onClick={onNewChat}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-medium text-gray-600 hover:text-[#D4AF37] hover:border-[#D4AF37] hover:bg-yellow-50/50 transition-all shadow-sm"

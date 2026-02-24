@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 // @ts-ignore
 import * as mammoth from "mammoth";
 import * as XLSX from 'xlsx';
-import { Agent, Message, User, ChatSession, Attachment, ProGrowthClient, ProGrowthPhase } from './types';
+import { Agent, Message, User, ChatSession, Attachment, ProGrowthClient, ProGrowthPhase, LlmProvider } from './types';
 import { AGENTS } from './config/agents';
 import Sidebar from './components/Sidebar';
 import ChatArea from './components/ChatArea';
@@ -30,6 +30,7 @@ const App: React.FC = () => {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
 
   const [isTyping, setIsTyping] = useState<boolean>(false);
+  const [llmProvider, setLlmProvider] = useState<LlmProvider>('openai');
 
   // ProGrowth States
   const [proGrowthClients, setProGrowthClients] = useState<ProGrowthClient[]>([]);
@@ -497,6 +498,7 @@ const App: React.FC = () => {
         body: JSON.stringify({
           messages: apiMessages,
           systemInstruction: effectiveSystemInstruction,
+          provider: llmProvider,
         }),
       });
 
@@ -651,6 +653,8 @@ const App: React.FC = () => {
             isTyping={isTyping}
             selectedProGrowthClient={selectedProGrowthClient}
             onAdvanceToPhase2={handleAdvanceToPhase2}
+            llmProvider={llmProvider}
+            onLlmProviderChange={setLlmProvider}
           />
         ) : (
           <div className="flex items-center justify-center h-full text-gray-400 flex-col gap-4">

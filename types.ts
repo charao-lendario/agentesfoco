@@ -40,6 +40,9 @@ export interface ChatHistory {
   [agentId: string]: Message[];
 }
 
+// LLM Provider Selection
+export type LlmProvider = 'openai' | 'claude';
+
 // ProGrowth Agent Types
 export type ProGrowthPhase = 1 | 2 | 'complete';
 
