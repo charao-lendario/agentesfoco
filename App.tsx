@@ -36,6 +36,7 @@ const App: React.FC = () => {
   const [selectedProGrowthClient, setSelectedProGrowthClient] = useState<ProGrowthClient | null>(null);
   const [showNewClientModal, setShowNewClientModal] = useState(false);
   const [newClientName, setNewClientName] = useState('');
+  const [newClientError, setNewClientError] = useState('');
 
   // --- Supabase Helpers ---
 
@@ -220,11 +221,17 @@ const App: React.FC = () => {
 
   const handleCreateProGrowthClient = async () => {
     if (!newClientName.trim() || !currentUser) return;
-    const client = await createProGrowthClient(currentUser.id, newClientName.trim());
-    setProGrowthClients(prev => [client, ...prev]);
-    setSelectedProGrowthClient(client);
-    setNewClientName('');
-    setShowNewClientModal(false);
+    setNewClientError('');
+    try {
+      const client = await createProGrowthClient(currentUser.id, newClientName.trim());
+      setProGrowthClients(prev => [client, ...prev]);
+      setSelectedProGrowthClient(client);
+      setNewClientName('');
+      setShowNewClientModal(false);
+    } catch (err: any) {
+      console.error('Erro ao criar cliente:', err);
+      setNewClientError(err?.message || 'Erro ao criar cliente. Verifique se a tabela foi criada no Supabase.');
+    }
   };
 
   const handleSelectProGrowthClient = (client: ProGrowthClient) => {
@@ -651,12 +658,15 @@ const App: React.FC = () => {
               type="text"
               placeholder="Nome do cliente / empresa"
               value={newClientName}
-              onChange={e => setNewClientName(e.target.value)}
+              onChange={e => { setNewClientName(e.target.value); setNewClientError(''); }}
               onKeyDown={e => e.key === 'Enter' && handleCreateProGrowthClient()}
               className="w-full p-3 rounded mb-4 text-white"
               style={{ backgroundColor: '#112240', border: '1px solid #B8860B' }}
               autoFocus
             />
+            {newClientError && (
+              <p className="text-red-400 text-sm mb-3">{newClientError}</p>
+            )}
             <div className="flex gap-2">
               <button
                 onClick={handleCreateProGrowthClient}
@@ -667,7 +677,7 @@ const App: React.FC = () => {
                 Criar Cliente
               </button>
               <button
-                onClick={() => { setShowNewClientModal(false); setNewClientName(''); }}
+                onClick={() => { setShowNewClientModal(false); setNewClientName(''); setNewClientError(''); }}
                 style={{ backgroundColor: '#112240', color: '#8892B0', border: '1px solid #1E3A5F' }}
                 className="flex-1 py-2 rounded"
               >
