@@ -39,3 +39,18 @@ export interface ChatSession {
 export interface ChatHistory {
   [agentId: string]: Message[];
 }
+
+// ProGrowth Agent Types
+export type ProGrowthPhase = 1 | 2 | 'complete';
+
+export interface ProGrowthClient {
+  id: string;
+  userId: string;
+  name: string;
+  phase: ProGrowthPhase;
+  phase1Document?: string;
+  phase2Document?: string;
+  finalDocument?: string;
+  createdAt: number;
+  updatedAt: number;
+}

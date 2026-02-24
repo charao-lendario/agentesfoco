@@ -1,16 +1,19 @@
 import React from 'react';
-import { Agent, User, ChatSession } from '../types';
-import { 
-  BrainCircuit, 
-  PenTool, 
-  Terminal, 
-  BarChart3, 
-  Bot, 
-  LogOut, 
+import { Agent, User, ChatSession, ProGrowthClient } from '../types';
+import {
+  BrainCircuit,
+  PenTool,
+  Terminal,
+  BarChart3,
+  Bot,
+  LogOut,
   Settings,
   Notebook,
   MessageSquare,
-  Clock
+  Clock,
+  TrendingUp,
+  Plus,
+  Users
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -22,6 +25,10 @@ interface SidebarProps {
   sessions: ChatSession[];
   currentSessionId: string | null;
   onSelectSession: (sessionId: string) => void;
+  proGrowthClients: ProGrowthClient[];
+  selectedProGrowthClient: ProGrowthClient | null;
+  onSelectProGrowthClient: (client: ProGrowthClient) => void;
+  onNewProGrowthClient: () => void;
 }
 
 // Map string names to Lucide components
@@ -31,18 +38,23 @@ const IconMap: Record<string, React.FC<any>> = {
   Terminal,
   BarChart3,
   Bot,
-  Notebook
+  Notebook,
+  TrendingUp
 };
 
-const Sidebar: React.FC<SidebarProps> = ({ 
-  agents, 
-  selectedAgentId, 
-  onSelectAgent, 
+const Sidebar: React.FC<SidebarProps> = ({
+  agents,
+  selectedAgentId,
+  onSelectAgent,
   currentUser,
   onLogout,
   sessions,
   currentSessionId,
-  onSelectSession
+  onSelectSession,
+  proGrowthClients,
+  selectedProGrowthClient,
+  onSelectProGrowthClient,
+  onNewProGrowthClient
 }) => {
   // Sort sessions by last modified (newest first)
   const sortedSessions = [...sessions].sort((a, b) => b.lastModified - a.lastModified);
@@ -96,24 +108,78 @@ const Sidebar: React.FC<SidebarProps> = ({
           })}
         </div>
 
-        {/* History Section */}
-        {sortedSessions.length > 0 && (
+        {/* ProGrowth Clients Section (when agente_05 is selected) */}
+        {selectedAgentId === 'agente_05' && (
           <div className="space-y-2 pt-4 border-t border-white/10">
             <h3 className="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-2">
-              <Clock size={12} /> Histórico Recente
+              <Users size={12} /> Clientes ProGrowth
             </h3>
-            
+
+            <button
+              onClick={onNewProGrowthClient}
+              className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium text-[#D4AF37] hover:bg-[#D4AF37]/10 transition-all border border-dashed border-[#D4AF37]/30 hover:border-[#D4AF37]/60"
+            >
+              <Plus size={14} />
+              Novo Cliente
+            </button>
+
+            {proGrowthClients.map((client) => {
+              const isActive = selectedProGrowthClient?.id === client.id;
+              const phaseBadge = client.phase === 1
+                ? { label: 'Fase 1', color: '#EAB308' }
+                : client.phase === 2
+                ? { label: 'Fase 2', color: '#3B82F6' }
+                : { label: 'Completo', color: '#22C55E' };
+
+              return (
+                <button
+                  key={client.id}
+                  onClick={() => onSelectProGrowthClient(client)}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group text-left text-xs
+                    ${isActive
+                      ? 'bg-[#D4AF37]/10 text-[#D4AF37] border-l-2 border-[#D4AF37]'
+                      : 'text-gray-400 hover:bg-white/5 hover:text-gray-200 border-l-2 border-transparent'
+                    }`}
+                >
+                  <TrendingUp size={14} className={isActive ? "text-[#D4AF37]" : "text-gray-500"} />
+                  <div className="flex flex-col overflow-hidden flex-1">
+                    <span className="font-medium truncate w-36">
+                      {client.name}
+                    </span>
+                    <span className="text-[10px] opacity-60 truncate">
+                      {new Date(client.createdAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <span
+                    className="text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0"
+                    style={{ backgroundColor: phaseBadge.color + '20', color: phaseBadge.color }}
+                  >
+                    {phaseBadge.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* History Section */}
+        {selectedAgentId !== 'agente_05' && sortedSessions.length > 0 && (
+          <div className="space-y-2 pt-4 border-t border-white/10">
+            <h3 className="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-2">
+              <Clock size={12} /> Historico Recente
+            </h3>
+
             {sortedSessions.map((session) => {
               const isActive = currentSessionId === session.id;
               const agent = agents.find(a => a.id === session.agentId);
-              
+
               return (
                 <button
                   key={session.id}
                   onClick={() => onSelectSession(session.id)}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group text-left text-xs
-                    ${isActive 
-                      ? 'bg-[#D4AF37]/10 text-[#D4AF37] border-l-2 border-[#D4AF37]' 
+                    ${isActive
+                      ? 'bg-[#D4AF37]/10 text-[#D4AF37] border-l-2 border-[#D4AF37]'
                       : 'text-gray-400 hover:bg-white/5 hover:text-gray-200 border-l-2 border-transparent'
                     }`}
                 >

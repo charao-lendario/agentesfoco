@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Agent, Message, Attachment } from '../types';
-import { Send, Bot, Sparkles, Paperclip, X, FileText, PlusCircle, Download, FileSpreadsheet, FileDown } from 'lucide-react';
+import { Agent, Message, Attachment, ProGrowthClient } from '../types';
+import { Send, Bot, Sparkles, Paperclip, X, FileText, PlusCircle, Download, FileSpreadsheet, FileDown, CheckCircle, ArrowRight, FileOutput } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 // @ts-ignore
@@ -12,9 +12,11 @@ interface ChatAreaProps {
   onSendMessage: (text: string, attachments: Attachment[]) => void;
   onNewChat: () => void;
   isTyping: boolean;
+  selectedProGrowthClient?: ProGrowthClient | null;
+  onAdvanceToPhase2?: () => void;
 }
 
-const ChatArea: React.FC<ChatAreaProps> = ({ agent, messages, onSendMessage, onNewChat, isTyping }) => {
+const ChatArea: React.FC<ChatAreaProps> = ({ agent, messages, onSendMessage, onNewChat, isTyping, selectedProGrowthClient, onAdvanceToPhase2 }) => {
   const [inputText, setInputText] = useState('');
   const [selectedFiles, setSelectedFiles] = useState<Attachment[]>([]);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState<string | null>(null);
@@ -113,6 +115,51 @@ const ChatArea: React.FC<ChatAreaProps> = ({ agent, messages, onSendMessage, onN
     });
   };
 
+  const isProGrowthAgent = agent.id === 'agente_05';
+  const pgClient = selectedProGrowthClient;
+
+  // Check if last message is from assistant (for phase advance button)
+  const lastAssistantMsg = messages.length > 0 && messages[messages.length - 1].role === 'assistant';
+
+  const exportFinalDocument = () => {
+    if (!pgClient?.finalDocument) return;
+    setIsGeneratingPdf('final-doc');
+
+    // Create a temporary container with styled content
+    const container = document.createElement('div');
+    container.style.padding = '20px';
+    container.style.fontFamily = 'Arial, sans-serif';
+    container.style.fontSize = '12px';
+    container.style.lineHeight = '1.6';
+    container.style.color = '#1a1a1a';
+    container.innerHTML = `<div class="prose prose-sm max-w-none">${pgClient.finalDocument}</div>`;
+    document.body.appendChild(container);
+
+    const opt = {
+      margin: [10, 10, 10, 10],
+      filename: `ProGrowth_${pgClient.name}_Documento_Final_${new Date().toISOString().slice(0, 10)}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const }
+    };
+
+    html2pdf().set(opt).from(container).save().then(() => {
+      document.body.removeChild(container);
+      setIsGeneratingPdf(null);
+    });
+  };
+
+  // ProGrowth input placeholder by phase
+  const getPlaceholder = () => {
+    if (!isProGrowthAgent) return `Mensagem para ${agent.name}...`;
+    if (!pgClient) return `Selecione ou crie um cliente na barra lateral...`;
+    if (pgClient.phase === 1) return `Narre ou cole o diagnostico e estrategia inicial do cliente...`;
+    if (pgClient.phase === 2) return `Narre ou cole os complementos e novos itens...`;
+    return `Plano concluido. Inicie um novo cliente na barra lateral.`;
+  };
+
+  const isInputDisabled = isProGrowthAgent && (!pgClient || pgClient.phase === 'complete');
+
   return (
     <div className="flex flex-col h-full w-full bg-[#F9FAFB] relative">
       {/* Chat Header */}
@@ -143,6 +190,60 @@ const ChatArea: React.FC<ChatAreaProps> = ({ agent, messages, onSendMessage, onN
         </div>
       </div>
 
+      {/* ProGrowth Client Banner */}
+      {isProGrowthAgent && pgClient && (
+        <div
+          className="px-6 py-3 flex items-center justify-between shrink-0 border-b"
+          style={{ backgroundColor: '#112240', borderColor: '#1E3A5F' }}
+        >
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-semibold" style={{ color: '#FFD700' }}>
+              {pgClient.name}
+            </span>
+            <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{
+              backgroundColor: pgClient.phase === 1 ? '#EAB30820' : pgClient.phase === 2 ? '#3B82F620' : '#22C55E20',
+              color: pgClient.phase === 1 ? '#EAB308' : pgClient.phase === 2 ? '#3B82F6' : '#22C55E'
+            }}>
+              {pgClient.phase === 1 ? 'Fase 1 de 2' : pgClient.phase === 2 ? 'Fase 2 de 2' : 'Completo'}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            {pgClient.phase === 1 && lastAssistantMsg && (
+              <button
+                onClick={onAdvanceToPhase2}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-90"
+                style={{ backgroundColor: '#22C55E', color: 'white' }}
+              >
+                <CheckCircle size={14} />
+                Confirmar Fase 1 e Avancar para Fase 2
+              </button>
+            )}
+            {pgClient.phase === 'complete' && (
+              <button
+                onClick={exportFinalDocument}
+                disabled={isGeneratingPdf === 'final-doc'}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-90"
+                style={{ backgroundColor: '#B8860B', color: 'white' }}
+              >
+                <FileOutput size={14} />
+                {isGeneratingPdf === 'final-doc' ? 'Gerando PDF...' : 'Exportar Documento Final (PDF)'}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ProGrowth: No client selected */}
+      {isProGrowthAgent && !pgClient ? (
+        <div className="flex-1 flex flex-col items-center justify-center text-gray-400 opacity-60">
+          <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-4" style={{ color: '#D4AF37' }}>
+            <Bot size={32} />
+          </div>
+          <p className="text-lg font-medium">Selecione ou crie um cliente na barra lateral</p>
+          <p className="text-sm">O agente ProGrowth trabalha por cliente</p>
+        </div>
+      ) : (
+      <>
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
         {messages.length === 0 ? (
@@ -327,8 +428,9 @@ const ChatArea: React.FC<ChatAreaProps> = ({ agent, messages, onSendMessage, onN
               type="text"
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
-              placeholder={`Mensagem para ${agent.name}...`}
-              className="w-full pl-4 pr-14 py-4 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] focus:bg-white transition-all shadow-sm text-gray-800"
+              placeholder={getPlaceholder()}
+              disabled={isInputDisabled}
+              className="w-full pl-4 pr-14 py-4 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 focus:border-[#D4AF37] focus:bg-white transition-all shadow-sm text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
             />
             <button
               type="submit"
@@ -343,6 +445,8 @@ const ChatArea: React.FC<ChatAreaProps> = ({ agent, messages, onSendMessage, onN
           Suporta PDF, DOC/DOCX, Imagens e Texto.
         </p>
       </div>
+      </>
+      )}
     </div>
   );
 };

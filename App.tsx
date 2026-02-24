@@ -3,12 +3,12 @@ import React, { useState, useEffect } from 'react';
 // @ts-ignore
 import * as mammoth from "mammoth";
 import * as XLSX from 'xlsx';
-import { Agent, Message, User, ChatSession, Attachment } from './types';
+import { Agent, Message, User, ChatSession, Attachment, ProGrowthClient, ProGrowthPhase } from './types';
 import { AGENTS } from './config/agents';
 import Sidebar from './components/Sidebar';
 import ChatArea from './components/ChatArea';
 import Login from './components/Login';
-import { supabase } from './lib/supabase';
+import { supabase, loadProGrowthClients, createProGrowthClient, updateProGrowthClient } from './lib/supabase';
 
 // Mock User Data
 const MOCK_USER: User = {
@@ -30,6 +30,12 @@ const App: React.FC = () => {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
 
   const [isTyping, setIsTyping] = useState<boolean>(false);
+
+  // ProGrowth States
+  const [proGrowthClients, setProGrowthClients] = useState<ProGrowthClient[]>([]);
+  const [selectedProGrowthClient, setSelectedProGrowthClient] = useState<ProGrowthClient | null>(null);
+  const [showNewClientModal, setShowNewClientModal] = useState(false);
+  const [newClientName, setNewClientName] = useState('');
 
   // --- Supabase Helpers ---
 
@@ -137,6 +143,7 @@ const App: React.FC = () => {
       setCurrentUser(user);
       setIsAuthenticated(true);
       loadSessionsFromSupabase(user.email);
+      loadProGrowthClients(user.id).then(clients => setProGrowthClients(clients));
     }
     // Limpa dados antigos do localStorage (migração)
     localStorage.removeItem('agentes_foco_sessions');
@@ -150,6 +157,7 @@ const App: React.FC = () => {
     setIsAuthenticated(true);
     localStorage.setItem('agentes_foco_user', JSON.stringify(user));
     loadSessionsFromSupabase(email);
+    loadProGrowthClients(user.id).then(clients => setProGrowthClients(clients));
   };
 
   const handleLogout = () => {
@@ -206,6 +214,29 @@ const App: React.FC = () => {
       // Force create new session
       createNewSession(selectedAgentId);
     }
+  };
+
+  // --- ProGrowth Handlers ---
+
+  const handleCreateProGrowthClient = async () => {
+    if (!newClientName.trim() || !currentUser) return;
+    const client = await createProGrowthClient(currentUser.id, newClientName.trim());
+    setProGrowthClients(prev => [client, ...prev]);
+    setSelectedProGrowthClient(client);
+    setNewClientName('');
+    setShowNewClientModal(false);
+  };
+
+  const handleSelectProGrowthClient = (client: ProGrowthClient) => {
+    setSelectedProGrowthClient(client);
+  };
+
+  const handleAdvanceToPhase2 = async () => {
+    if (!selectedProGrowthClient) return;
+    await updateProGrowthClient(selectedProGrowthClient.id, { phase: 2 });
+    const updated = { ...selectedProGrowthClient, phase: 2 as ProGrowthPhase };
+    setSelectedProGrowthClient(updated);
+    setProGrowthClients(prev => prev.map(c => c.id === updated.id ? updated : c));
   };
 
   // Helper to convert Base64 Data URI to Uint8Array (Buffer)
@@ -428,6 +459,17 @@ const App: React.FC = () => {
       apiMessages.push(currentMsgApi);
 
       // 5. Call Backend Proxy (Gemini via streaming)
+      // Inject ProGrowth context if applicable
+      let effectiveSystemInstruction = activeAgent.systemPrompt;
+      if (activeAgent.id === 'agente_05' && selectedProGrowthClient) {
+        const pgClient = selectedProGrowthClient;
+        if (pgClient.phase === 1) {
+          effectiveSystemInstruction += `\n\n---\nCONTEXTO DA SESSAO:\nCliente: "${pgClient.name}"\nFase: 1/2 — Diagnostico e Estrategia Inicial\n\nINSTRUCOES: O consultor narrou o diagnostico comercial do cliente acima. Gere o Plano Estrategico Fase 1 completo seguindo a estrutura definida.`;
+        } else if (pgClient.phase === 2) {
+          effectiveSystemInstruction += `\n\n---\nCONTEXTO DA SESSAO:\nCliente: "${pgClient.name}"\nFase: 2/2 — Complementos e Documento Final\n\nPLANO FASE 1 (ja aprovado):\n${pgClient.phase1Document || ''}\n\nINSTRUCOES: O consultor enviou novos complementos. Gere o complemento Fase 2 e consolide tudo no Documento Final Unificado. NUNCA contradiga o que foi definido na Fase 1.`;
+        }
+      }
+
       const response = await fetch('/api/generate', {
         method: 'POST',
         headers: {
@@ -435,7 +477,7 @@ const App: React.FC = () => {
         },
         body: JSON.stringify({
           messages: apiMessages,
-          systemInstruction: activeAgent.systemPrompt,
+          systemInstruction: effectiveSystemInstruction,
         }),
       });
 
@@ -506,6 +548,24 @@ const App: React.FC = () => {
       saveMessageToSupabase(finalAiMsg, currentSessionId);
       updateSessionMetaInSupabase(currentSessionId, { last_modified: Date.now() }).catch(() => {});
 
+      // 8. ProGrowth: salvar documento gerado no cliente
+      if (activeAgent.id === 'agente_05' && selectedProGrowthClient && fullText) {
+        if (selectedProGrowthClient.phase === 1) {
+          const updates = { phase1Document: fullText };
+          await updateProGrowthClient(selectedProGrowthClient.id, updates);
+          const updated = { ...selectedProGrowthClient, ...updates };
+          setSelectedProGrowthClient(updated);
+          setProGrowthClients(prev => prev.map(c => c.id === updated.id ? updated : c));
+        } else if (selectedProGrowthClient.phase === 2) {
+          const updates = { phase2Document: fullText, finalDocument: fullText };
+          await updateProGrowthClient(selectedProGrowthClient.id, updates);
+          const updated = { ...selectedProGrowthClient, ...updates, phase: 'complete' as ProGrowthPhase };
+          await updateProGrowthClient(selectedProGrowthClient.id, { phase: 'complete' as ProGrowthPhase });
+          setSelectedProGrowthClient(updated);
+          setProGrowthClients(prev => prev.map(c => c.id === updated.id ? updated : c));
+        }
+      }
+
     } catch (error: any) {
       console.error("Erro API Gemini:", error);
 
@@ -555,6 +615,10 @@ const App: React.FC = () => {
         sessions={sessions}
         currentSessionId={currentSessionId}
         onSelectSession={handleSelectSession}
+        proGrowthClients={proGrowthClients}
+        selectedProGrowthClient={selectedProGrowthClient}
+        onSelectProGrowthClient={handleSelectProGrowthClient}
+        onNewProGrowthClient={() => setShowNewClientModal(true)}
       />
 
       <main className="flex-1 flex flex-col relative h-full">
@@ -565,6 +629,8 @@ const App: React.FC = () => {
             onSendMessage={handleSendMessage}
             onNewChat={handleNewChat}
             isTyping={isTyping}
+            selectedProGrowthClient={selectedProGrowthClient}
+            onAdvanceToPhase2={handleAdvanceToPhase2}
           />
         ) : (
           <div className="flex items-center justify-center h-full text-gray-400 flex-col gap-4">
@@ -575,6 +641,42 @@ const App: React.FC = () => {
           </div>
         )}
       </main>
+
+      {/* ProGrowth New Client Modal */}
+      {showNewClientModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div style={{ backgroundColor: '#0A192F', border: '1px solid #B8860B' }} className="rounded-lg p-6 w-80">
+            <h3 style={{ color: '#FFD700' }} className="text-lg font-bold mb-4">Novo Cliente ProGrowth</h3>
+            <input
+              type="text"
+              placeholder="Nome do cliente / empresa"
+              value={newClientName}
+              onChange={e => setNewClientName(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleCreateProGrowthClient()}
+              className="w-full p-3 rounded mb-4 text-white"
+              style={{ backgroundColor: '#112240', border: '1px solid #B8860B' }}
+              autoFocus
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={handleCreateProGrowthClient}
+                disabled={!newClientName.trim()}
+                style={{ backgroundColor: '#B8860B', color: 'white' }}
+                className="flex-1 py-2 rounded font-semibold disabled:opacity-50"
+              >
+                Criar Cliente
+              </button>
+              <button
+                onClick={() => { setShowNewClientModal(false); setNewClientName(''); }}
+                style={{ backgroundColor: '#112240', color: '#8892B0', border: '1px solid #1E3A5F' }}
+                className="flex-1 py-2 rounded"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
