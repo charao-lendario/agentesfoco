@@ -10,7 +10,6 @@ CREATE TABLE IF NOT EXISTS public.progrowth_clients (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-ALTER TABLE public.progrowth_clients ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "users_own_clients" ON public.progrowth_clients
-  FOR ALL USING (user_id = auth.uid()::text);
+-- App usa mock auth (nao Supabase Auth), entao RLS e desabilitado.
+-- Se migrar para Supabase Auth no futuro, habilitar RLS e criar policy apropriada.
+ALTER TABLE public.progrowth_clients DISABLE ROW LEVEL SECURITY;
