@@ -13,7 +13,8 @@ import {
   Clock,
   TrendingUp,
   Plus,
-  Users
+  Users,
+  Trash2
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -29,6 +30,7 @@ interface SidebarProps {
   selectedProGrowthClient: ProGrowthClient | null;
   onSelectProGrowthClient: (client: ProGrowthClient) => void;
   onNewProGrowthClient: () => void;
+  onDeleteProGrowthClient: (id: string) => void;
 }
 
 // Map string names to Lucide components
@@ -54,7 +56,8 @@ const Sidebar: React.FC<SidebarProps> = ({
   proGrowthClients,
   selectedProGrowthClient,
   onSelectProGrowthClient,
-  onNewProGrowthClient
+  onNewProGrowthClient,
+  onDeleteProGrowthClient
 }) => {
   // Sort sessions by last modified (newest first)
   const sortedSessions = [...sessions].sort((a, b) => b.lastModified - a.lastModified);
@@ -132,31 +135,44 @@ const Sidebar: React.FC<SidebarProps> = ({
                 : { label: 'Completo', color: '#22C55E' };
 
               return (
-                <button
-                  key={client.id}
-                  onClick={() => onSelectProGrowthClient(client)}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group text-left text-xs
-                    ${isActive
-                      ? 'bg-[#D4AF37]/10 text-[#D4AF37] border-l-2 border-[#D4AF37]'
-                      : 'text-gray-400 hover:bg-white/5 hover:text-gray-200 border-l-2 border-transparent'
-                    }`}
-                >
-                  <TrendingUp size={14} className={isActive ? "text-[#D4AF37]" : "text-gray-500"} />
-                  <div className="flex flex-col overflow-hidden flex-1">
-                    <span className="font-medium truncate w-36">
-                      {client.name}
-                    </span>
-                    <span className="text-[10px] opacity-60 truncate">
-                      {new Date(client.createdAt).toLocaleDateString()}
-                    </span>
-                  </div>
-                  <span
-                    className="text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0"
-                    style={{ backgroundColor: phaseBadge.color + '20', color: phaseBadge.color }}
+                <div key={client.id} className="relative group/item">
+                  <button
+                    onClick={() => onSelectProGrowthClient(client)}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group text-left text-xs pr-8
+                      ${isActive
+                        ? 'bg-[#D4AF37]/10 text-[#D4AF37] border-l-2 border-[#D4AF37]'
+                        : 'text-gray-400 hover:bg-white/5 hover:text-gray-200 border-l-2 border-transparent'
+                      }`}
                   >
-                    {phaseBadge.label}
-                  </span>
-                </button>
+                    <TrendingUp size={14} className={isActive ? "text-[#D4AF37]" : "text-gray-500"} />
+                    <div className="flex flex-col overflow-hidden flex-1">
+                      <span className="font-medium truncate w-28">
+                        {client.name}
+                      </span>
+                      <span className="text-[10px] opacity-60 truncate">
+                        {new Date(client.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <span
+                      className="text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0"
+                      style={{ backgroundColor: phaseBadge.color + '20', color: phaseBadge.color }}
+                    >
+                      {phaseBadge.label}
+                    </span>
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (window.confirm(`Excluir cliente "${client.name}"? Esta ação não pode ser desfeita.`)) {
+                        onDeleteProGrowthClient(client.id);
+                      }
+                    }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover/item:opacity-100 p-1 rounded text-gray-500 hover:text-red-400 hover:bg-red-900/20 transition-all"
+                    title="Excluir cliente"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
               );
             })}
           </div>

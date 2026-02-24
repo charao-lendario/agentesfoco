@@ -8,7 +8,7 @@ import { AGENTS } from './config/agents';
 import Sidebar from './components/Sidebar';
 import ChatArea from './components/ChatArea';
 import Login from './components/Login';
-import { supabase, loadProGrowthClients, createProGrowthClient, updateProGrowthClient } from './lib/supabase';
+import { supabase, loadProGrowthClients, createProGrowthClient, updateProGrowthClient, deleteProGrowthClient } from './lib/supabase';
 
 // Mock User Data
 const MOCK_USER: User = {
@@ -236,6 +236,18 @@ const App: React.FC = () => {
 
   const handleSelectProGrowthClient = (client: ProGrowthClient) => {
     setSelectedProGrowthClient(client);
+  };
+
+  const handleDeleteProGrowthClient = async (id: string) => {
+    try {
+      await deleteProGrowthClient(id);
+      setProGrowthClients(prev => prev.filter(c => c.id !== id));
+      if (selectedProGrowthClient?.id === id) {
+        setSelectedProGrowthClient(null);
+      }
+    } catch (err) {
+      console.error('Erro ao excluir cliente:', err);
+    }
   };
 
   const handleAdvanceToPhase2 = async () => {
@@ -626,6 +638,7 @@ const App: React.FC = () => {
         selectedProGrowthClient={selectedProGrowthClient}
         onSelectProGrowthClient={handleSelectProGrowthClient}
         onNewProGrowthClient={() => setShowNewClientModal(true)}
+        onDeleteProGrowthClient={handleDeleteProGrowthClient}
       />
 
       <main className="flex-1 flex flex-col relative h-full">
