@@ -1183,7 +1183,7 @@ O Plano de Ação NÃO é uma lista de boas intenções — é um roteiro de tra
 Antes de iniciar o diagnóstico, execute esta extração com precisão cirúrgica a partir da transcrição:
 
 ## 1. NOME DA EMPRESA
-Identifique o nome real da empresa mencionado na transcrição. Se `{{ $json.empresa }}` estiver preenchido, confirme se corresponde ao nome citado. Em caso de divergência, use o nome da transcrição. **Este nome DEVE aparecer no cabeçalho, na linha de copyright e em toda referência à empresa ao longo do relatório.**
+Identifique o nome real da empresa mencionado na transcrição. Se \`{{ $json.empresa }}\` estiver preenchido, confirme se corresponde ao nome citado. Em caso de divergência, use o nome da transcrição. **Este nome DEVE aparecer no cabeçalho, na linha de copyright e em toda referência à empresa ao longo do relatório.**
 
 ## 2. PARTICIPANTES E CARGOS
 Liste TODOS os participantes identificados pelo nome na transcrição, com cargo/função inferido pelo contexto das falas. Mantenha esta lista como referência para cada citação, recomendação e ação do relatório. Exemplo:
