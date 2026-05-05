@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { ProGrowthClient, ProGrowthPhase } from '../types';
 
-const supabaseUrl = 'https://api.supabase.iaxlab.top';
+const supabaseUrl = 'https://supabase-api.iaxlab.top';
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzcwOTI3MTU5LCJleHAiOjIwODYyODcxNTl9.4Rp7f0eVbpBQlSyR-kc8Xs5MCq6_yrLlF9JatFqmYL0';
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
