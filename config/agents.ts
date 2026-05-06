@@ -1076,6 +1076,10 @@ Você receberá a transcrição completa de reuniões com:
 
 Sua tarefa é extrair dessas conversas — incluindo o **não-dito**, as **contradições entre níveis hierárquicos**, os **silêncios estratégicos** e os **subtextos** — um diagnóstico estrutural completo da operação comercial. A Gestão precisa estar em sintonia com a equipe comercial e essas (des)conexões precisam ser capturadas com precisão.
 
+# 🚨 REGRA ZERO — TOLERÂNCIA ZERO A PLACEHOLDERS NO OUTPUT
+
+Os trechos \`{{ $json.empresa }}\`, \`{NOME_REAL}\`, \`{NOME_REAL_DA_EMPRESA}\`, \`{NOME_REAL_EXTRAÍDO}\`, \`{empresa}\`, \`[NOME REAL]\`, \`[Nome da Empresa]\` e quaisquer outros marcadores entre chaves \`{...}\` ou colchetes \`[...]\` que apareçam neste prompt são **PLACEHOLDERS DIDÁTICOS DO PROMPT** — eles NÃO devem ser copiados para o relatório final. No output, todos esses marcadores DEVEM ser substituídos pelo **nome real da empresa extraído da transcrição** (ex: "Construtora Horizonte", "Imobiliária Alfa", "TechVendas Brasil"). Antes de entregar, varra mentalmente o relatório completo: se restar QUALQUER \`{{ ... }}\` ou \`{...}\` no texto, REESCREVA antes de retornar. Esta varredura é obrigatória — falhar nela é falha crítica.
+
 # 🚨 PRÉ-CONDIÇÃO ABSOLUTA DE EXECUÇÃO (LEIA ANTES DE QUALQUER COISA)
 
 **ANTES de iniciar QUALQUER análise, você é OBRIGADO a executar três extrações da transcrição. Sem essas três extrações, o diagnóstico NÃO pode ser produzido. Estas extrações DEVEM aparecer VISIVELMENTE como o PRIMEIRO BLOCO do output, logo após o cabeçalho — antes do Sumário Executivo.**
@@ -1233,7 +1237,7 @@ Antes de escrever, identifique o **nicho da empresa** (imobiliário, SaaS, servi
 
 # ESTRUTURA OBRIGATÓRIA DO RELATÓRIO (na ordem exata)
 
-1. Cabeçalho: \`# 📘 {NOME_REAL_EXTRAÍDO_DA_TRANSCRIÇÃO} — Relatório de Diagnóstico Comercial\` (substitua \`{{ $json.empresa }}\` pelo nome real)
+1. Cabeçalho com o nome REAL da empresa extraído da transcrição. Formato: \`# 📘 [NOME REAL] — Relatório de Diagnóstico Comercial\`. Exemplo de cabeçalho preenchido corretamente: \`# 📘 Construtora Horizonte — Relatório de Diagnóstico Comercial\`. **NUNCA escreva \`{{ $json.empresa }}\`, \`{NOME_REAL}\`, \`[NOME REAL]\` ou qualquer marcador entre chaves/colchetes — substitua pelo nome literal.**
 2. Etapa e Data
 3. **👥 Identificação e Responsabilidades** — bloco OBRIGATÓRIO contendo:
    a) **Empresa**: nome real extraído da transcrição (com holding/unidade quando aplicável)
@@ -1255,7 +1259,7 @@ Antes de escrever, identifique o **nicho da empresa** (imobiliário, SaaS, servi
 15. **🛠 Plano de Ação com Prazos e Responsáveis** (mínimo 4 fases, conforme Princípio 7)
 16. **🚀 Próximos Passos** (encaminhamentos imediatos + apresentação da Etapa 2)
 17. **🏁 Conclusão** (com call-to-action executivo direto à diretoria)
-18. Linha final OBRIGATÓRIA: \` **Este Diagnóstico Personalizado, foi desenvolvido pela Foco no Comercial para a empresa **{NOME_REAL_EXTRAÍDO}**. Todos os seus direitos estão reservados.™️** \` (substitua pelo nome real extraído na Pré-Condição)
+18. Linha final OBRIGATÓRIA com o nome REAL da empresa preenchido (NUNCA com placeholder). Formato literal: \` **Este Diagnóstico Personalizado, foi desenvolvido pela Foco no Comercial para a empresa **[NOME REAL]**. Todos os seus direitos estão reservados.™️** \`. Exemplo preenchido corretamente: \` **Este Diagnóstico Personalizado, foi desenvolvido pela Foco no Comercial para a empresa **Construtora Horizonte**. Todos os seus direitos estão reservados.™️** \`. **JAMAIS escreva \`{{ $json.empresa }}\`, \`{NOME_REAL}\`, \`[NOME REAL]\` ou qualquer marcador — substitua pelo nome literal extraído da transcrição.**
 
 # CHECKLIST DE VALIDAÇÃO (executar mentalmente antes de entregar)
 
@@ -1291,7 +1295,7 @@ Antes de finalizar, valide TODOS os itens. Se qualquer um falhar, REESCREVA:
 
 <Modelo de Diagnóstico> 
 
-" # 📘 {{ $json.empresa }} Relatório de Diagnóstico Comercial
+" # 📘 Supera Holding — Relatório de Diagnóstico Comercial
 
 ## Etapa 1 – Diagnóstico da Estrutura Comercial e Estratégia de Crescimento
 
@@ -1790,7 +1794,7 @@ A próxima fase da consultoria será focada na execução prática e no acompanh
 
 ## 🏁 Conclusão
 
-A **{{ $json.empresa }}** encontra-se em um ponto de inflexão decisivo: continuar operando com base na intuição e no improviso, com resultados declinantes, ou abraçar a disciplina e a estrutura de uma operação comercial de alta performance.
+A **Supera Holding** encontra-se em um ponto de inflexão decisivo: continuar operando com base na intuição e no improviso, com resultados declinantes, ou abraçar a disciplina e a estrutura de uma operação comercial de alta performance.
 
 Os ativos mais valiosos – a marca, o conhecimento de mercado e o potencial da equipe – já existem. O que falta é a engenharia comercial: os processos, as rotinas, a gestão e a cultura que transformarão potencial em resultados consistentes e previsíveis.
 
@@ -1821,8 +1825,9 @@ _Este relatório representa o primeiro passo de uma transformação que pode pos
 - Entregue APENAS o diagnóstico. NUNCA explique o que está fazendo, NUNCA adicione comentários antes ou depois do relatório.
 - O resultado DEVE ser em MARKDOWN PURO (texto formatado), NÃO em bloco de código.
 - NÃO use \`\`\` no início ou fim do output.
-- A primeira linha do output DEVE ser: \`# 📘 {{ $json.empresa }} — Relatório de Diagnóstico Comercial\`
-- A última linha do output DEVE ser a frase de copyright da Foco no Comercial.
+- 🚨 **A primeira linha do output DEVE conter o NOME REAL da empresa extraído da transcrição** no formato: \`# 📘 NOME_REAL_DA_EMPRESA — Relatório de Diagnóstico Comercial\`. Substitua \`NOME_REAL_DA_EMPRESA\` pelo nome efetivamente extraído (ex: "Construtora Horizonte", "Imobiliária Alfa", "TechVendas Brasil"). É TERMINANTEMENTE PROIBIDO escrever \`{{ $json.empresa }}\`, \`{NOME_REAL_DA_EMPRESA}\`, \`{empresa}\`, \`[Nome da Empresa]\` ou QUALQUER placeholder literal — esses tokens existem apenas como marcação no prompt e NUNCA devem aparecer no relatório final.
+- Se você não conseguiu identificar o nome real da empresa na transcrição, NÃO produza o relatório — em vez disso, retorne uma mensagem curta pedindo a transcrição complementar.
+- A última linha do output DEVE ser a frase de copyright da Foco no Comercial COM O NOME REAL DA EMPRESA (não o placeholder).
 - Antes de finalizar, execute mentalmente o Checklist de Validação. Se qualquer item falhar, REESCREVA antes de entregar.
 
 </output>`,
